@@ -3,6 +3,7 @@ import random
 import re
 
 from discord.ext import commands
+from discord.ext.commands import CommandNotFound
 
 from lib.jsondb import JSONDB
 from lib.reports import get_next_report_num, Report
@@ -38,6 +39,13 @@ async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
     print('------')
+
+
+@bot.event
+async def on_command_error(error, ctx):
+    if isinstance(error, CommandNotFound):
+        return
+    await bot.send_message(ctx.message.channel, f"Error: {error}")
 
 
 @bot.event
@@ -157,11 +165,13 @@ async def note(ctx, _id, *, msg=''):
     await report.update(ctx)
 
 
-@bot.command(pass_context=True)
+@bot.command(pass_context=True, aliases=['close'])
 async def resolve(ctx, _id, *, msg=''):
     """Owner only - Resolves a report."""
     if not ctx.message.author.id == OWNER_ID: return
     report = Report.from_id(_id)
+    if report.severity == -1:
+        return await bot.say("This report is already closed.")
 
     report.severity = -1
     if msg:
@@ -174,6 +184,24 @@ async def resolve(ctx, _id, *, msg=''):
 
     report.commit()
     await bot.say(f"Resolved `{report.report_id}`: {report.title}.")
+
+@bot.command(pass_context=True, aliases=['open'])
+async def unresolve(ctx, _id, *, msg=''):
+    """Owner only - Unresolves a report."""
+    if not ctx.message.author.id == OWNER_ID: return
+    report = Report.from_id(_id)
+    if not report.severity == -1:
+        return await bot.say("This report is still open.")
+
+    report.severity = 6
+    if msg:
+        report.addnote(ctx.message.author.id, f"Unresolved - {msg}")
+
+    msg = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
+    report.message = msg.id
+    report.commit()
+    await bot.say(f"Unresolved `{report.report_id}`: {report.title}.")
+
 
 
 @bot.command(pass_context=True)

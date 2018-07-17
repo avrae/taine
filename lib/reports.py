@@ -65,21 +65,22 @@ class Report:
         embed.add_field(name="Added By", value=f"<@{self.reporter}>")
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
         embed.add_field(name="Verification", value=str(self.verification))
-        embed.set_footer(text=f"Use ~report {self.report_id} for details.")
+        embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr [note]")
         if detailed:
             if not ctx:
                 raise ValueError("Context not supplied for detailed call.")
-            embed.description = f"*{len(self.attachments)} notes, showing first 5*"
-            for attachment in self.attachments[:5]:
+            embed.description = f"*{len(self.attachments)} notes, showing first 10*"
+            for attachment in self.attachments[:10]:
                 user = ctx.message.server.get_member(attachment['author'])
                 msg = attachment['msg'][:1020] or "No details."
                 embed.add_field(name=f"{VERI_EMOJI.get(attachment['veri'], '')} {user}",
-                                value=msg,
-                                inline=False)
+                                value=msg)
 
         return embed
 
     def canrepro(self, author, msg):
+        if [a for a in self.attachments if a['author'] == author and a['veri']]:
+            raise Exception("You have already verified this report.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -89,6 +90,8 @@ class Report:
         self.attachments.append(attachment)
 
     def cannotrepro(self, author, msg):
+        if [a for a in self.attachments if a['author'] == author and a['veri']]:
+            raise Exception("You have already verified this report.")
         attachment = {
             'author': author,
             'msg': msg,
