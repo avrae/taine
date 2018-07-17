@@ -65,7 +65,7 @@ class Report:
         embed.add_field(name="Added By", value=f"<@{self.reporter}>")
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
         embed.add_field(name="Verification", value=str(self.verification))
-        embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr [note]")
+        embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note]")
         if detailed:
             if not ctx:
                 raise ValueError("Context not supplied for detailed call.")
