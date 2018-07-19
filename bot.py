@@ -1,3 +1,4 @@
+import copy
 import os
 import random
 import re
@@ -216,11 +217,15 @@ async def reidentify(ctx, report_id, identifier):
     id_num = get_next_report_num(identifier)
 
     report = Report.from_id(report_id)
+    new_report = copy.copy(report)
     await report.resolve(ctx, f"Reassigned as `{identifier}-{id_num}`.")
     report.commit()
 
-    report.report_id = f"{identifier}-{id_num}"
-    report.commit()
+    new_report.report_id = f"{identifier}-{id_num}"
+    msg = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=new_report.get_embed())
+    new_report.message = msg.id
+    new_report.commit()
+    await bot.say(f"Reassigned {report.report_id} as {new_report.report_id}.")
 
 
 @bot.command(pass_context=True)
