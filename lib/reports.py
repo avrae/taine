@@ -6,8 +6,9 @@ from lib.jsondb import JSONDB
 db = JSONDB()  # something something instancing
 
 PRIORITY = {
-    -1: "Resolved", 0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low",
-    5: "P5: Trivial", 6: "Pending/Other"
+    -2: "Patch Pending", -1: "Resolved",
+    0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low", 5: "P5: Trivial",
+    6: "Pending/Other"
 }
 VERI_EMOJI = {
     1: "\u2705",  # WHITE HEAVY CHECK MARK
@@ -119,6 +120,19 @@ class Report:
 
     async def update(self, ctx):
         await ctx.bot.edit_message(await self.get_message(ctx), embed=self.get_embed())
+
+    async def resolve(self, ctx, msg=''):
+        if self.severity == -1:
+            raise Exception("This report is already closed.")
+
+        self.severity = -1
+        if msg:
+            self.addnote(ctx.message.author.id, f"Resolved - {msg}")
+
+        msg = await self.get_message(ctx)
+        if msg:
+            await ctx.bot.delete_message(msg)
+            self.message = None
 
 
 def get_next_report_num(identifier):

@@ -165,25 +165,29 @@ async def note(ctx, _id, *, msg=''):
     await report.update(ctx)
 
 
+@bot.command(pass_context=True)
+async def attach(ctx, report_id, message_id):
+    """Attaches a recent message to a report."""
+    report = Report.from_id(report_id)
+    try:
+        msg = next(m for m in bot.messages if m.id == message_id)
+    except StopIteration:
+        return await bot.say("I cannot find that message.")
+    report.addnote(msg.author.id, msg.content)
+    report.commit()
+    await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
+    await report.update(ctx)
+
+
 @bot.command(pass_context=True, aliases=['close'])
 async def resolve(ctx, _id, *, msg=''):
     """Owner only - Resolves a report."""
     if not ctx.message.author.id == OWNER_ID: return
     report = Report.from_id(_id)
-    if report.severity == -1:
-        return await bot.say("This report is already closed.")
-
-    report.severity = -1
-    if msg:
-        report.addnote(ctx.message.author.id, f"Resolved - {msg}")
-
-    msg = await report.get_message(ctx)
-    if msg:
-        await bot.delete_message(msg)
-        report.message = None
-
+    await report.resolve(ctx, msg)
     report.commit()
     await bot.say(f"Resolved `{report.report_id}`: {report.title}.")
+
 
 @bot.command(pass_context=True, aliases=['open'])
 async def unresolve(ctx, _id, *, msg=''):
@@ -203,6 +207,21 @@ async def unresolve(ctx, _id, *, msg=''):
     await bot.say(f"Unresolved `{report.report_id}`: {report.title}.")
 
 
+@bot.command(pass_context=True)
+async def reidentify(ctx, report_id, identifier):
+    """Owner only - Changes the identifier of a report."""
+    if not ctx.message.author.id == OWNER_ID: return
+
+    identifier = identifier.upper()
+    id_num = get_next_report_num(identifier)
+
+    report = Report.from_id(report_id)
+    await report.resolve(ctx, f"Reassigned as `{identifier}-{id_num}`.")
+    report.commit()
+
+    report.report_id = f"{identifier}-{id_num}"
+    report.commit()
+
 
 @bot.command(pass_context=True)
 async def priority(ctx, _id, pri: int, *, msg=''):
@@ -217,6 +236,37 @@ async def priority(ctx, _id, pri: int, *, msg=''):
     report.commit()
     await report.update(ctx)
     await bot.say(f"Changed priority of `{report.report_id}`: {report.title} to P{pri}.")
+
+
+@bot.command(pass_context=True, aliases=['pend'])
+async def pending(ctx, *reports):
+    """Owner only - Marks reports as pending for next patch."""
+    if not ctx.message.author.id == OWNER_ID: return
+    for _id in reports:
+        try:
+            report = Report.from_id(_id)
+        except:
+            continue
+        report.severity = -2
+        report.commit()
+        await report.update(ctx)
+    await bot.say(f"Marked {len(reports)} reports as patch pending.")
+
+
+@bot.command(pass_context=True)
+async def update(ctx, build_id: int):
+    """Owner only - To be run after an update. Resolves all -P2 reports."""
+    if not ctx.message.author.id == OWNER_ID: return
+    await bot.delete_message(ctx.message)
+    changelog = f"**Build {build_id}**\n"
+    for raw_report in bot.db.jget("reports", []):
+        report = Report.from_dict(raw_report)
+        if not report.severity == -2:
+            continue
+        await report.resolve(ctx, f"Patched in build {build_id}")
+        report.commit()
+        changelog += f"- `{report.report_id}` {report.title}\n"
+    await bot.say(changelog)
 
 
 if __name__ == '__main__':
