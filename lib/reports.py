@@ -110,7 +110,9 @@ class Report:
         self.attachments.append(attachment)
 
     async def get_message(self, ctx):
-        if self.message in self.message_cache:
+        if self.message is None:
+            return None
+        elif self.message in self.message_cache:
             return self.message_cache[self.message]
         else:
             msg = await ctx.bot.get_message(ctx.bot.get_channel(TRACKER_CHAN), self.message)
