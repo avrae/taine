@@ -131,8 +131,11 @@ class Report:
 
         msg = await self.get_message(ctx)
         if msg:
-            await ctx.bot.delete_message(msg)
-            self.message = None
+            try:
+                await ctx.bot.delete_message(msg)
+                del Report.message_cache[self.message]
+            finally:
+                self.message = None
 
 
 def get_next_report_num(identifier):
