@@ -264,7 +264,7 @@ async def update(ctx, build_id: int):
     if not ctx.message.author.id == OWNER_ID: return
     await bot.delete_message(ctx.message)
     changelog = f"**Build {build_id}**\n"
-    for raw_report in bot.db.jget("reports", []):
+    for _id, raw_report in bot.db.jget("reports", {}).items():
         report = Report.from_dict(raw_report)
         if not report.severity == -2:
             continue
