@@ -262,7 +262,6 @@ async def pending(ctx, *reports):
 async def update(ctx, build_id: int):
     """Owner only - To be run after an update. Resolves all -P2 reports."""
     if not ctx.message.author.id == OWNER_ID: return
-    await bot.delete_message(ctx.message)
     changelog = f"**Build {build_id}**\n"
     for _id, raw_report in bot.db.jget("reports", {}).items():
         report = Report.from_dict(raw_report)
@@ -271,7 +270,8 @@ async def update(ctx, build_id: int):
         await report.resolve(ctx, f"Patched in build {build_id}")
         report.commit()
         changelog += f"- `{report.report_id}` {report.title}\n"
-    await bot.say(changelog)
+    await bot.send_message(ctx.message.channel, changelog)
+    await bot.delete_message(ctx.message)
 
 
 if __name__ == '__main__':
