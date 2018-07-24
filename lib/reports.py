@@ -100,7 +100,7 @@ class Report:
             'msg': msg,
             'veri': 2
         }
-        self.verification += 1
+        self.verification += 2
         self.attachments.append(attachment)
 
     def cannotrepro(self, author, msg):
@@ -122,7 +122,7 @@ class Report:
             'msg': msg,
             'veri': -2
         }
-        self.verification -= 1
+        self.verification -= 2
         self.attachments.append(attachment)
 
     def addnote(self, author, msg):
