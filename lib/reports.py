@@ -13,7 +13,9 @@ PRIORITY = {
 VERI_EMOJI = {
     1: "\u2705",  # WHITE HEAVY CHECK MARK
     -1: "\u274c",  # CROSS MARK
-    0: "\u2139"  # INFORMATION SOURCE
+    0: "\u2139",  # INFORMATION SOURCE
+    2: "\u2b06", # UPVOTE
+    3: "\u2b07" # DOWNVOTE
 }
 TRACKER_CHAN = "360855116057673729"
 
@@ -89,6 +91,17 @@ class Report:
         }
         self.verification += 1
         self.attachments.append(attachment)
+        
+    def upvote(self, author, msg):
+        if[a for a in self.attachments if a['author'] == author and a['veri']]:
+            raise Exception("You have already upvoted this report.")
+        attachment = {
+            'author': author,
+            'msg': msg,
+            'veri': 2
+        }
+        self.verification += 1
+        self.attachments.append(attachment)
 
     def cannotrepro(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
@@ -97,6 +110,17 @@ class Report:
             'author': author,
             'msg': msg,
             'veri': -1
+        }
+        self.verification -= 1
+        self.attachments.append(attachment)
+        
+    def downvote(self, author, msg): # lol Dusk was here
+        if [a for a in self.attachments if a['author'] == author and a['veri']]:
+            raise Exception("You have already downvoted this report.")
+        attachment = {
+            'author': author,
+            'msg': msg,
+            'veri': 3
         }
         self.verification -= 1
         self.attachments.append(attachment)
