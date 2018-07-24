@@ -11,11 +11,11 @@ PRIORITY = {
     6: "Pending/Other"
 }
 VERI_EMOJI = {
-    1: "\u2705",  # WHITE HEAVY CHECK MARK
+    -2: "\u2b07" # DOWNVOTE
     -1: "\u274c",  # CROSS MARK
-    0: "\u2139",  # INFORMATION SOURCE
+	0: "\u2139",  # INFORMATION SOURCE
+    1: "\u2705",  # WHITE HEAVY CHECK MARK
     2: "\u2b06", # UPVOTE
-    3: "\u2b07" # DOWNVOTE
 }
 TRACKER_CHAN = "360855116057673729"
 
@@ -120,7 +120,7 @@ class Report:
         attachment = {
             'author': author,
             'msg': msg,
-            'veri': 3
+            'veri': -2
         }
         self.verification -= 1
         self.attachments.append(attachment)
