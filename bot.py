@@ -131,13 +131,13 @@ async def bug(ctx):
 
 
 @bot.command(pass_context=True, name="report")
-async def viewreport(ctx, _id):
+async def viewreport(ctx, _id.upper()):
     """Gets the detailed status of a report."""
     await bot.say(embed=Report.from_id(_id).get_embed(True, ctx))
 
 
 @bot.command(pass_context=True, aliases=['cr'])
-async def canrepro(ctx, _id, *, msg=''):
+async def canrepro(ctx, _id.upper(), *, msg=''):
     """Adds reproduction to a report."""
     report = Report.from_id(_id)
     report.canrepro(ctx.message.author.id, msg)
@@ -146,7 +146,7 @@ async def canrepro(ctx, _id, *, msg=''):
     await report.update(ctx)
 
 @bot.command(pass_context=True, aliases=['up'])
-async def upvote(ctx, _id, *, msg=''):
+async def upvote(ctx, _id.upper(), *, msg=''):
     """Adds an upvote to the selected feature request."""
     report = Report.from_id(_id)
     report.upvote(ctx.message.author.id, msg)
@@ -155,7 +155,7 @@ async def upvote(ctx, _id, *, msg=''):
     await report.update(ctx)
 
 @bot.command(pass_context=True, aliases=['cnr'])
-async def cannotrepro(ctx, _id, *, msg=''):
+async def cannotrepro(ctx, _id.upper(), *, msg=''):
     """Adds nonreproduction to a report."""
     report = Report.from_id(_id)
     report.cannotrepro(ctx.message.author.id, msg)
@@ -164,7 +164,7 @@ async def cannotrepro(ctx, _id, *, msg=''):
     await report.update(ctx)
 
 @bot.command(pass_context=True, aliases=['down'])
-async def downvote(ctx, _id, *, msg=''):
+async def downvote(ctx, _id.upper(), *, msg=''):
     """Adds a downvote to the selected feature request."""
     report = Report.from_id(_id)
     report.downvote(ctx.message.author.id, msg)
@@ -173,7 +173,7 @@ async def downvote(ctx, _id, *, msg=''):
     await report.update(ctx)
 
 @bot.command(pass_context=True)
-async def note(ctx, _id, *, msg=''):
+async def note(ctx, _id.upper(), *, msg=''):
     """Adds a note to a report."""
     report = Report.from_id(_id)
     report.addnote(ctx.message.author.id, msg)
@@ -183,7 +183,7 @@ async def note(ctx, _id, *, msg=''):
 
 
 @bot.command(pass_context=True)
-async def attach(ctx, report_id, message_id):
+async def attach(ctx, report_id.upper(), message_id):
     """Attaches a recent message to a report."""
     report = Report.from_id(report_id)
     try:
@@ -197,7 +197,7 @@ async def attach(ctx, report_id, message_id):
 
 
 @bot.command(pass_context=True, aliases=['close'])
-async def resolve(ctx, _id, *, msg=''):
+async def resolve(ctx, _id.upper(), *, msg=''):
     """Owner only - Resolves a report."""
     if not ctx.message.author.id == OWNER_ID: return
     report = Report.from_id(_id)
@@ -207,7 +207,7 @@ async def resolve(ctx, _id, *, msg=''):
 
 
 @bot.command(pass_context=True, aliases=['open'])
-async def unresolve(ctx, _id, *, msg=''):
+async def unresolve(ctx, _id.upper(), *, msg=''):
     """Owner only - Unresolves a report."""
     if not ctx.message.author.id == OWNER_ID: return
     report = Report.from_id(_id)
@@ -225,7 +225,7 @@ async def unresolve(ctx, _id, *, msg=''):
 
 
 @bot.command(pass_context=True)
-async def reidentify(ctx, report_id, identifier):
+async def reidentify(ctx, report_id.upper(), identifier):
     """Owner only - Changes the identifier of a report."""
     if not ctx.message.author.id == OWNER_ID: return
 
@@ -245,7 +245,7 @@ async def reidentify(ctx, report_id, identifier):
 
 
 @bot.command(pass_context=True)
-async def priority(ctx, _id, pri: int, *, msg=''):
+async def priority(ctx, _id.upper(), pri: int, *, msg=''):
     """Owner only - Changes the priority of a report."""
     if not ctx.message.author.id == OWNER_ID: return
     report = Report.from_id(_id)
