@@ -13,7 +13,7 @@ PRIORITY = {
 VERI_EMOJI = {
     -2: "\u2b07" # DOWNVOTE
     -1: "\u274c",  # CROSS MARK
-	0: "\u2139",  # INFORMATION SOURCE
+    0: "\u2139",  # INFORMATION SOURCE
     1: "\u2705",  # WHITE HEAVY CHECK MARK
     2: "\u2b06", # UPVOTE
 }
@@ -100,7 +100,7 @@ class Report:
             'msg': msg,
             'veri': 2
         }
-        self.verification += 2
+        self.verification += 1
         self.attachments.append(attachment)
 
     def cannotrepro(self, author, msg):
@@ -122,7 +122,7 @@ class Report:
             'msg': msg,
             'veri': -2
         }
-        self.verification -= 2
+        self.verification -= 1
         self.attachments.append(attachment)
 
     def addnote(self, author, msg):
