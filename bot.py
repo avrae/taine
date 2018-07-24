@@ -136,25 +136,41 @@ async def viewreport(ctx, _id):
     await bot.say(embed=Report.from_id(_id).get_embed(True, ctx))
 
 
-@bot.command(pass_context=True, aliases=['upvote', 'cr'])
+@bot.command(pass_context=True, aliases=['cr'])
 async def canrepro(ctx, _id, *, msg=''):
-    """Adds reproduction to a report, or votes up a feature request."""
+    """Adds reproduction to a report."""
     report = Report.from_id(_id)
     report.canrepro(ctx.message.author.id, msg)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
 
+@bot.command(pass_context=True, aliases=['up'])
+async def upvote(ctx, _id, *, msg=''):
+    """Adds an upvote to the selected feature request."""
+    report = Report.from_id(_id)
+    report.upvote(ctx.message.author.id, msg)
+    report.commit()
+    await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
+    await report.update(ctx)
 
-@bot.command(pass_context=True, aliases=['downvote', 'cnr'])
+@bot.command(pass_context=True, aliases=['cnr'])
 async def cannotrepro(ctx, _id, *, msg=''):
-    """Adds nonreproduction to a report, or votes down a feature request."""
+    """Adds nonreproduction to a report."""
     report = Report.from_id(_id)
     report.cannotrepro(ctx.message.author.id, msg)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
 
+@bot.command(pass_context=True, aliases=['down'])
+async def downvote(ctx, _id, *, msg=''):
+    """Adds a downvote to the selected feature request."""
+    report = Report.from_id(_id)
+    report.downvote(ctx.message.author.id, msg)
+    report.commit()
+    await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
+    await report.update(ctx)
 
 @bot.command(pass_context=True)
 async def note(ctx, _id, *, msg=''):
