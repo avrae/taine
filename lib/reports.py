@@ -11,13 +11,13 @@ PRIORITY = {
     6: "Pending/Other"
 }
 VERI_EMOJI = {
-    -2: "\u2b07" # DOWNVOTE
+    -2: "\u2b07",  # DOWNVOTE
     -1: "\u274c",  # CROSS MARK
     0: "\u2139",  # INFORMATION SOURCE
     1: "\u2705",  # WHITE HEAVY CHECK MARK
-    2: "\u2b06", # UPVOTE
+    2: "\u2b06",  # UPVOTE
 }
-TRACKER_CHAN = "360855116057673729"
+TRACKER_CHAN = "360855116057673729" # AVRAE DEV "360855116057673729"
 
 
 class Report:
@@ -52,7 +52,7 @@ class Report:
     def from_id(cls, report_id):
         reports = db.jget("reports", {})
         try:
-            return cls.from_dict(reports[report_id])
+            return cls.from_dict(reports[report_id.upper()])
         except KeyError:
             raise Exception("Report not found.")
 
@@ -91,9 +91,9 @@ class Report:
         }
         self.verification += 1
         self.attachments.append(attachment)
-        
+
     def upvote(self, author, msg):
-        if[a for a in self.attachments if a['author'] == author and a['veri']]:
+        if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise Exception("You have already upvoted this report.")
         attachment = {
             'author': author,
@@ -113,8 +113,8 @@ class Report:
         }
         self.verification -= 1
         self.attachments.append(attachment)
-        
-    def downvote(self, author, msg): # lol Dusk was here
+
+    def downvote(self, author, msg):  # lol Dusk was here
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise Exception("You have already downvoted this report.")
         attachment = {
