@@ -14,9 +14,10 @@ bot.db = JSONDB()
 
 TOKEN = os.environ.get("TOKEN")
 OWNER_ID = "187421759484592128"
-BUG_CHAN = "336792750773239809"
-FEATURE_CHAN = "297190603819843586"
-TRACKER_CHAN = "360855116057673729"
+BUG_CHAN = "336792750773239809" # AVRAE DEV "336792750773239809"
+DDB_CHAN = "463580965810208768" # AVRAE DEV "463580965810208768"
+FEATURE_CHAN = "297190603819843586" # AVRAE DEV "297190603819843586"
+TRACKER_CHAN = "360855116057673729" # AVRAE DEV "360855116057673729"
 REACTIONS = [
     "\U0001f640",  # scream_cat
     "\U0001f426",  # bird
@@ -59,6 +60,9 @@ async def on_message(message):
     elif message.channel.id == FEATURE_CHAN:  # feature-request
         match = re.match(r"\**Feature [Rr]equest\**\s?:?(.+?)\n", message.content)
         report_type = 'AFR'
+    elif message.channel.id == DDB_CHAN: # bug-hunting-ddb
+        match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)\n", message.content)
+        report_type = 'DDB'
 
     if match:
         title = match.group(1)
@@ -295,3 +299,4 @@ if __name__ == '__main__':
         print("token not set.")
     else:
         bot.run(TOKEN)
+        
