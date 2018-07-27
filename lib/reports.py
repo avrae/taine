@@ -17,6 +17,7 @@ VERI_EMOJI = {
     1: "\u2705",  # WHITE HEAVY CHECK MARK
     2: "\u2b06",  # UPVOTE
 }
+
 TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
 
 
@@ -24,12 +25,14 @@ class Report:
     message_cache = LRUCache(maxsize=100)
 
     def __init__(self, reporter: str, report_id: str, title: str, severity: int, verification: int, attachments: list,
-                 message: str):
+                 message: str, upvotes: int = 0, downvotes: int = 0):
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
         self.severity = severity
         self.verification = verification
+        self.upvotes = upvotes
+        self.downvotes = downvotes
         self.attachments = attachments
         self.message = message
 
@@ -45,7 +48,8 @@ class Report:
     def to_dict(self):
         return {
             'reporter': self.reporter, 'report_id': self.report_id, 'title': self.title, 'severity': self.severity,
-            'verification': self.verification, 'attachments': self.attachments, 'message': self.message
+            'verification': self.verification, 'upvotes': self.upvotes, 'downvotes': self.downvotes,
+            'attachments': self.attachments, 'message': self.message
         }
 
     @classmethod
@@ -63,12 +67,32 @@ class Report:
 
     def get_embed(self, detailed=False, ctx=None):
         embed = discord.Embed()
-        embed.title = f"`{self.report_id}` {self.title}"
-        embed.description = f"*{len(self.attachments)} notes*"
         embed.add_field(name="Added By", value=f"<@{self.reporter}>")
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
-        embed.add_field(name="Verification", value=str(self.verification))
-        embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note]")
+        if self.report_id.startswith("AFR"):
+            # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
+            embed.colour = 0x00ff00
+            embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
+            embed.set_footer(text=f"~report {self.report_id} for details | Vote with ~up/~down {self.report_id} [note]")
+        elif self.report_id.startswith("WEB"):
+            embed.colour = 0x57235c
+            embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes),
+                            inline=True)
+            embed.add_field(name="Verification", value=str(self.verification))
+            embed.set_footer(text=f"~report {self.report_id} for details | "
+                                  f"Verify with ~cr/~cnr {self.report_id} [note], "
+                                  f"or vote with ~up/~down {self.report_id} [note]")
+        else:
+            if self.report_id.startswith("AVR"):
+                embed.colour = 0xff0000
+            elif self.report_id.startswith("DDB"):
+                embed.colour = 0xe30910
+            embed.add_field(name="Verification", value=str(self.verification))
+            embed.set_footer(text=f"~report {self.report_id} for details | "
+                                  f"Verify with ~cr/~cnr {self.report_id} [note]")
+
+        embed.title = f"`{self.report_id}` {self.title}"
+        embed.description = f"*{len(self.attachments)} notes*"
         if detailed:
             if not ctx:
                 raise ValueError("Context not supplied for detailed call.")
@@ -100,7 +124,7 @@ class Report:
             'msg': msg,
             'veri': 2
         }
-        self.verification += 1
+        self.upvotes += 1
         self.attachments.append(attachment)
 
     def cannotrepro(self, author, msg):
@@ -122,7 +146,7 @@ class Report:
             'msg': msg,
             'veri': -2
         }
-        self.verification -= 1
+        self.downvotes += 1
         self.attachments.append(attachment)
 
     def addnote(self, author, msg):
