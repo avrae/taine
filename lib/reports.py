@@ -18,7 +18,6 @@ VERI_EMOJI = {
     2: "\u2b06",  # UPVOTE
 }
 
-
 TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
 
 
@@ -26,7 +25,7 @@ class Report:
     message_cache = LRUCache(maxsize=100)
 
     def __init__(self, reporter: str, report_id: str, title: str, severity: int, verification: int, attachments: list,
-                 message: str, upvotes:int=0, downvotes:int=0):
+                 message: str, upvotes: int = 0, downvotes: int = 0):
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
@@ -39,8 +38,8 @@ class Report:
 
     @classmethod
     def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None, severity: int = 6,
-            verification: int = 0, upvotes: int = 0, downvotes: int = 0):
-        return cls(reporter, report_id, title, severity, verification, attachments, message, upvotes, downvotes)
+            verification: int = 0):
+        return cls(reporter, report_id, title, severity, verification, attachments, message)
 
     @classmethod
     def from_dict(cls, report_dict):
@@ -67,37 +66,31 @@ class Report:
         db.jset("reports", reports)
 
     def get_embed(self, detailed=False, ctx=None):
-        if self.report_id.startswith("AFR"): # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
-            embed = discord.Embed(color=0x00ff00)
-            embed.add_field(name="Added By", value=f"<@{self.reporter}>")
-            embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
+        embed = discord.Embed()
+        embed.add_field(name="Added By", value=f"<@{self.reporter}>")
+        embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
+        if self.report_id.startswith("AFR"):
+            # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
+            embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
             embed.set_footer(text=f"~report {self.report_id} for details | Vote with ~up/~down {self.report_id} [note]")
-        elif self.report_id.startswith("AVR"):
-            embed = discord.Embed(color=0xff0000)
-            embed.add_field(name="Added By", value=f"<@{self.reporter}>")
-            embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
-            embed.add_field(name="Verification", value=str(self.verification))
-            embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note]")
-        elif self.report_id.startswith("DDB"):
-            embed = discord.Embed(color=0xe30910)
-            embed.add_field(name="Added By", value=f"<@{self.reporter}>")
-            embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
-            embed.add_field(name="Verification", value=str(self.verification))
-            embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note]")
         elif self.report_id.startswith("WEB"):
-            embed = discord.Embed(color=0x57235c)
-            embed.add_field(name="Added By", value=f"<@{self.reporter}>", inline=True)
-            embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"), inline=True)
-            embed.add_field(name="Verification", value=str(self.verification), inline=True)
-            embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes), inline=True)
-            embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note], or vote with ~up/~down {self.report_id} [note]")
-        else:
-            embed = discord.Embed()
-            embed.set_footer(text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note], or vote with ~up/~down {self.report_id} [note]")
-            embed.add_field(name="Added By", value=f"<@{self.reporter}>")
-            embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
+            embed.colour = 0x57235c
+            embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes),
+                            inline=True)
             embed.add_field(name="Verification", value=str(self.verification))
+            embed.set_footer(text=f"~report {self.report_id} for details | "
+                                  f"Verify with ~cr/~cnr {self.report_id} [note], "
+                                  f"or vote with ~up/~down {self.report_id} [note]")
+        else:
+            if self.report_id.startswith("AVR"):
+                embed.colour = 0xff0000
+            elif self.report_id.startswith("DDB"):
+                embed.colour = 0xe30910
+            embed.add_field(name="Verification", value=str(self.verification))
+            embed.set_footer(text=f"~report {self.report_id} for details | "
+                                  f"Verify with ~cr/~cnr {self.report_id} [note]")
+
         embed.title = f"`{self.report_id}` {self.title}"
         embed.description = f"*{len(self.attachments)} notes*"
         if detailed:
