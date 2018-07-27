@@ -67,7 +67,7 @@ class Report:
         db.jset("reports", reports)
 
     def get_embed(self, detailed=False, ctx=None):
-        if self.report_id.startswith("AFR"):
+        if self.report_id.startswith("AFR"): # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
             embed = discord.Embed(color=0x00ff00)
             embed.add_field(name="Added By", value=f"<@{self.reporter}>")
             embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
