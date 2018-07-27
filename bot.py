@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 
 from lib.jsondb import JSONDB
-from lib.reports import get_next_report_num, Report
+from lib.reports import get_next_report_num, Report, ReportException
 
 bot = commands.Bot(command_prefix="~")
 bot.db = JSONDB()
@@ -270,15 +270,20 @@ async def priority(ctx, _id, pri: int, *, msg=''):
 async def pending(ctx, *reports):
     """Owner only - Marks reports as pending for next patch."""
     if not ctx.message.author.id == OWNER_ID: return
+    not_found = 0
     for _id in reports:
         try:
             report = Report.from_id(_id)
-        except:
+        except ReportException:
+            not_found += 1
             continue
         report.severity = -2
         report.commit()
         await report.update(ctx)
-    await bot.say(f"Marked {len(reports)} reports as patch pending.")
+    if not not_found:
+        await bot.say(f"Marked {len(reports)} reports as patch pending.")
+    else:
+        await bot.say(f"Marked {len(reports)} reports as patch pending. {not_found} reports were not found.")
 
 
 @bot.command(pass_context=True)

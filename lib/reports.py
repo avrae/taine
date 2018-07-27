@@ -58,7 +58,7 @@ class Report:
         try:
             return cls.from_dict(reports[report_id.upper()])
         except KeyError:
-            raise Exception("Report not found.")
+            raise ReportException("Report not found.")
 
     def commit(self):
         reports = db.jget("reports", {})
@@ -107,7 +107,7 @@ class Report:
 
     def canrepro(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
-            raise Exception("You have already verified this report.")
+            raise ReportException("You have already verified this report.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -118,7 +118,7 @@ class Report:
 
     def upvote(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
-            raise Exception("You have already upvoted this report.")
+            raise ReportException("You have already upvoted this report.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -129,7 +129,7 @@ class Report:
 
     def cannotrepro(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
-            raise Exception("You have already verified this report.")
+            raise ReportException("You have already verified this report.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -140,7 +140,7 @@ class Report:
 
     def downvote(self, author, msg):  # lol Dusk was here
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
-            raise Exception("You have already downvoted this report.")
+            raise ReportException("You have already downvoted this report.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -173,7 +173,7 @@ class Report:
 
     async def resolve(self, ctx, msg=''):
         if self.severity == -1:
-            raise Exception("This report is already closed.")
+            raise ReportException("This report is already closed.")
 
         self.severity = -1
         if msg:
@@ -194,3 +194,7 @@ def get_next_report_num(identifier):
     id_nums[identifier] = num
     db.jset("reportnums", id_nums)
     return f"{num:0>3}"
+
+
+class ReportException(Exception):
+    pass
