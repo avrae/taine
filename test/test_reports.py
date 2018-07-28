@@ -1,5 +1,3 @@
-import pytest
-
 from lib.reports import Report
 
 
@@ -16,16 +14,3 @@ def test_create():
     report_dict = report.to_dict()
     new_report = Report.from_dict(report_dict)
     assert report.__dict__ == new_report.__dict__
-
-
-def test_notes():
-    report = Report("1", "AVR-001", "test", 6, 0, [], None)
-    report.addnote("1", "test")
-    assert len(report.attachments) == 1
-
-    report.canrepro("1", "test")
-    assert len(report.attachments) == 2
-    assert report.verification == 1
-
-    with pytest.raises(Exception, match=r"You have already \w+ this report."):
-        report.cannotrepro("1", "test2")
