@@ -10,7 +10,7 @@ from lib.github import GitHubClient
 from lib.jsondb import JSONDB
 from lib.reports import get_next_report_num, Report, ReportException
 
-bot = commands.Bot(command_prefix="`")
+bot = commands.Bot(command_prefix="~")
 bot.db = JSONDB()
 
 TOKEN = os.environ.get("TOKEN")  # os.environ.get("TOKEN")
