@@ -5,11 +5,13 @@
 Taine is the main bot to track Avrae bugs and feature requests in Discord.  
 
 ### How to contribute
-Taine should be easy to run locally - as long as you're running Python 3.6+ and have an environment variable called `TOKEN` set to a valid Discord bot token, you can just run `python bot.py` after you've configured the constants.
+Taine should be easy to run locally - as long as you're running Python 3.6+ and have set two environment variables - `TOKEN` and `GITHUB_TOKEN` - to a valid Discord bot token and a valid GitHub personal access token, respectively, you can just run `python bot.py` after you've configured the constants.
 
 #### Constants
 At the top of `bot.py`, there are some constants:
 - TOKEN - The bot token, if you'd rather set it here.
+- GITHUB_TOKEN - A GitHub Personal Access Token, to post bug reports on GitHub.
+- GITHUB_REPO - The GitHub repository path to post issues on.
 - OWNER_ID - The Discord User ID of the bot's owner. Used to check if a user can run owner-only commands.
 - BUG_CHAN - The Discord Channel ID of the channel to listen for bug reports.
 - DDB_CHAN - The Discord Channel ID of the channel to listen for D&D Beyond bug reports.
