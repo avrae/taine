@@ -1,6 +1,7 @@
 import discord
 from cachetools import LRUCache
 
+from lib.github import GitHubClient
 from lib.jsondb import JSONDB
 
 db = JSONDB()  # something something instancing
@@ -17,15 +18,23 @@ VERI_EMOJI = {
     1: "\u2705",  # WHITE HEAVY CHECK MARK
     2: "\u2b06",  # UPVOTE
 }
+VERI_KEY = {
+    -2: "Downvote",
+    -1: "Cannot Reproduce",
+    0: "Note",
+    1: "Can Reproduce",
+    2: "Upvote"
+}
 
 TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
+GITHUB_BASE = "https://github.com"
 
 
 class Report:
     message_cache = LRUCache(maxsize=100)
 
     def __init__(self, reporter: str, report_id: str, title: str, severity: int, verification: int, attachments: list,
-                 message: str, upvotes: int = 0, downvotes: int = 0):
+                 message: str, upvotes: int = 0, downvotes: int = 0, github_issue: int = None):
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
@@ -35,11 +44,15 @@ class Report:
         self.downvotes = downvotes
         self.attachments = attachments
         self.message = message
+        self.github_issue = github_issue
 
     @classmethod
-    def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None, severity: int = 6,
-            verification: int = 0):
-        return cls(reporter, report_id, title, severity, verification, attachments, message)
+    async def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None,
+                  severity: int = 6, verification: int = 0):
+        inst = cls(reporter, report_id, title, severity, verification, attachments, message)
+        issue = await GitHubClient.get_instance().create_issue(f"{report_id} {title}", inst.get_github_desc())
+        inst.github_issue = issue.number
+        return inst
 
     @classmethod
     def from_dict(cls, report_dict):
@@ -49,7 +62,7 @@ class Report:
         return {
             'reporter': self.reporter, 'report_id': self.report_id, 'title': self.title, 'severity': self.severity,
             'verification': self.verification, 'upvotes': self.upvotes, 'downvotes': self.downvotes,
-            'attachments': self.attachments, 'message': self.message
+            'attachments': self.attachments, 'message': self.message, 'github_issue': self.github_issue
         }
 
     @classmethod
@@ -92,6 +105,8 @@ class Report:
                                   f"Verify with ~cr/~cnr {self.report_id} [note]")
 
         embed.title = f"`{self.report_id}` {self.title}"
+        if self.github_issue:
+            embed.url = f"{GITHUB_BASE}/{GitHubClient.get_instance().repo_name}/issues/{self.github_issue}"
         embed.description = f"*{len(self.attachments)} notes*"
         if detailed:
             if not ctx:
@@ -105,7 +120,17 @@ class Report:
 
         return embed
 
-    def canrepro(self, author, msg):
+    def get_github_desc(self):
+        if self.attachments:
+            return self.attachments[0]['msg']
+        return self.title
+
+    async def add_attachment(self, attachment):
+        self.attachments.append(attachment)
+        msg = f"{VERI_KEY.get(attachment['veri'], '')} - {attachment['author']}\n\n{attachment['msg']}"
+        await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+
+    async def canrepro(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already verified this report.")
         attachment = {
@@ -114,9 +139,9 @@ class Report:
             'veri': 1
         }
         self.verification += 1
-        self.attachments.append(attachment)
+        await self.add_attachment(attachment)
 
-    def upvote(self, author, msg):
+    async def upvote(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already upvoted this report.")
         attachment = {
@@ -125,9 +150,9 @@ class Report:
             'veri': 2
         }
         self.upvotes += 1
-        self.attachments.append(attachment)
+        await self.add_attachment(attachment)
 
-    def cannotrepro(self, author, msg):
+    async def cannotrepro(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already verified this report.")
         attachment = {
@@ -136,9 +161,9 @@ class Report:
             'veri': -1
         }
         self.verification -= 1
-        self.attachments.append(attachment)
+        await self.add_attachment(attachment)
 
-    def downvote(self, author, msg):  # lol Dusk was here
+    async def downvote(self, author, msg):  # lol Dusk was here
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already downvoted this report.")
         attachment = {
@@ -147,15 +172,15 @@ class Report:
             'veri': -2
         }
         self.downvotes += 1
-        self.attachments.append(attachment)
+        await self.add_attachment(attachment)
 
-    def addnote(self, author, msg):
+    async def addnote(self, author, msg):
         attachment = {
             'author': author,
             'msg': msg,
             'veri': 0
         }
-        self.attachments.append(attachment)
+        await self.add_attachment(attachment)
 
     async def get_message(self, ctx):
         if self.message is None:
@@ -171,21 +196,39 @@ class Report:
     async def update(self, ctx):
         await ctx.bot.edit_message(await self.get_message(ctx), embed=self.get_embed())
 
-    async def resolve(self, ctx, msg=''):
+    async def resolve(self, ctx, msg='', close_github_issue=True):
         if self.severity == -1:
             raise ReportException("This report is already closed.")
 
         self.severity = -1
         if msg:
-            self.addnote(ctx.message.author.id, f"Resolved - {msg}")
+            await self.addnote(ctx.message.author.id, f"Resolved - {msg}")
 
-        msg = await self.get_message(ctx)
-        if msg:
+        msg_ = await self.get_message(ctx)
+        if msg_:
             try:
-                await ctx.bot.delete_message(msg)
-                del Report.message_cache[self.message]
+                await ctx.bot.delete_message(msg_)
+                if self.message in Report.message_cache:
+                    del Report.message_cache[self.message]
             finally:
                 self.message = None
+
+        if close_github_issue:
+            await GitHubClient.get_instance().close_issue(self.github_issue)
+
+    async def unresolve(self, ctx, msg='', open_github_issue=True):
+        if not self.severity == -1:
+            raise ReportException("This report is still open.")
+
+        self.severity = 6
+        if msg:
+            await self.addnote(ctx.message.author.id, f"Unresolved - {msg}")
+
+        msg_ = await ctx.bot.send_message(ctx.bot.get_channel(TRACKER_CHAN), embed=self.get_embed())
+        self.message = msg_.id
+
+        if open_github_issue:
+            await GitHubClient.get_instance().open_issue(self.github_issue)
 
 
 def get_next_report_num(identifier):

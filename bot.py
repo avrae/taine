@@ -6,13 +6,16 @@ import re
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 
+from lib.github import GitHubClient
 from lib.jsondb import JSONDB
 from lib.reports import get_next_report_num, Report, ReportException
 
-bot = commands.Bot(command_prefix="~")
+bot = commands.Bot(command_prefix="`")
 bot.db = JSONDB()
 
 TOKEN = os.environ.get("TOKEN")  # os.environ.get("TOKEN")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_REPO = "avrae/avrae"
 OWNER_ID = "187421759484592128"  # ZHU "187421759484592128"
 BUG_CHAN = "336792750773239809"  # AVRAE DEV "336792750773239809" Make sure all 4 of these are unique, or else
 DDB_CHAN = "463580965810208768"  # AVRAE DEV "463580965810208768" the bot might not work properly!
@@ -68,8 +71,8 @@ async def on_message(message):
         report_num = get_next_report_num(report_type)
         report_id = f"{report_type}-{report_num}"
 
-        report = Report.new(message.author.id, report_id, title,
-                            [{'author': message.author.id, 'msg': message.content, 'veri': 0}])
+        report = await Report.new(message.author.id, report_id, title,
+                                  [{'author': message.author.id, 'msg': message.content, 'veri': 0}])
         report_message = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
         report.message = report_message.id
         report.commit()
@@ -122,8 +125,8 @@ async def bug(ctx):
               f"**Steps to reproduce**: {repro.content}\n" \
               f"**Context**: {context.content}"
 
-    report = Report.new(ctx.message.author.id, report_id, title,
-                        [{'author': ctx.message.author.id, 'msg': details, 'veri': 0}])
+    report = await Report.new(ctx.message.author.id, report_id, title,
+                              [{'author': ctx.message.author.id, 'msg': details, 'veri': 0}])
     report_message = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
     report.message = report_message.id
     report.commit()
@@ -143,7 +146,7 @@ async def viewreport(ctx, _id):
 async def canrepro(ctx, _id, *, msg=''):
     """Adds reproduction to a report."""
     report = Report.from_id(_id)
-    report.canrepro(ctx.message.author.id, msg)
+    await report.canrepro(ctx.message.author.id, msg)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -153,7 +156,7 @@ async def canrepro(ctx, _id, *, msg=''):
 async def upvote(ctx, _id, *, msg=''):
     """Adds an upvote to the selected feature request."""
     report = Report.from_id(_id)
-    report.upvote(ctx.message.author.id, msg)
+    await report.upvote(ctx.message.author.id, msg)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -163,7 +166,7 @@ async def upvote(ctx, _id, *, msg=''):
 async def cannotrepro(ctx, _id, *, msg=''):
     """Adds nonreproduction to a report."""
     report = Report.from_id(_id)
-    report.cannotrepro(ctx.message.author.id, msg)
+    await report.cannotrepro(ctx.message.author.id, msg)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -173,7 +176,7 @@ async def cannotrepro(ctx, _id, *, msg=''):
 async def downvote(ctx, _id, *, msg=''):
     """Adds a downvote to the selected feature request."""
     report = Report.from_id(_id)
-    report.downvote(ctx.message.author.id, msg)
+    await report.downvote(ctx.message.author.id, msg)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -183,7 +186,7 @@ async def downvote(ctx, _id, *, msg=''):
 async def note(ctx, _id, *, msg=''):
     """Adds a note to a report."""
     report = Report.from_id(_id)
-    report.addnote(ctx.message.author.id, msg)
+    await report.addnote(ctx.message.author.id, msg)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -197,7 +200,7 @@ async def attach(ctx, report_id, message_id):
         msg = next(m for m in bot.messages if m.id == message_id)
     except StopIteration:
         return await bot.say("I cannot find that message.")
-    report.addnote(msg.author.id, msg.content)
+    await report.addnote(msg.author.id, msg.content)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -218,15 +221,7 @@ async def unresolve(ctx, _id, *, msg=''):
     """Owner only - Unresolves a report."""
     if not ctx.message.author.id == OWNER_ID: return
     report = Report.from_id(_id)
-    if not report.severity == -1:
-        return await bot.say("This report is still open.")
-
-    report.severity = 6
-    if msg:
-        report.addnote(ctx.message.author.id, f"Unresolved - {msg}")
-
-    msg = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
-    report.message = msg.id
+    await report.unresolve(ctx, msg)
     report.commit()
     await bot.say(f"Unresolved `{report.report_id}`: {report.title}.")
 
@@ -241,7 +236,7 @@ async def reidentify(ctx, report_id, identifier):
 
     report = Report.from_id(report_id)
     new_report = copy.copy(report)
-    await report.resolve(ctx, f"Reassigned as `{identifier}-{id_num}`.")
+    await report.resolve(ctx, f"Reassigned as `{identifier}-{id_num}`.", False)
     report.commit()
 
     new_report.report_id = f"{identifier}-{id_num}"
@@ -303,7 +298,8 @@ async def update(ctx, build_id: int):
 
 
 if __name__ == '__main__':
-    if not TOKEN:
-        print("token not set.")
+    if not (TOKEN and GITHUB_TOKEN and GITHUB_REPO):
+        print("token or github metadata not set.")
     else:
+        GitHubClient.initialize(GITHUB_TOKEN, GITHUB_REPO)  # initialize
         bot.run(TOKEN)
