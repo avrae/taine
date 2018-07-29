@@ -2,6 +2,7 @@ import asyncio
 
 from aiohttp import web
 
+from lib.github import GitHubClient
 from lib.reports import Report, ReportException
 
 
@@ -51,6 +52,8 @@ class Web:
                 report = Report.from_github(issue_num)
             except ReportException:  # report not found
                 report = Report.from_issue(issue)
+                await GitHubClient.get_instance().add_issue_comment(issue['number'],
+                                                                    f"Tracked as `{report.report_id}`.")
 
             await report.unresolve(ContextProxy(self.bot), None, False)
             report.commit()
