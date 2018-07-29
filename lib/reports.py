@@ -89,7 +89,7 @@ class Report:
     def from_github(cls, issue_num):
         reports = db.jget("reports", {})
         try:
-            return cls.from_dict(next(r for r in reports.values() if r['github_issue'] == issue_num))
+            return cls.from_dict(next(r for r in reports.values() if r.get('github_issue') == issue_num))
         except StopIteration:
             raise ReportException("Report not found.")
 
