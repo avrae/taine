@@ -43,7 +43,7 @@ class Web:
 
             await report.resolve(ContextProxy(self.bot), None, False)
             report.commit()
-        elif action == "opened":
+        elif action in ("opened", "reopened"):
             # is the issue new?
             try:
                 report = Report.from_github(issue_num)
