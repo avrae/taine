@@ -33,6 +33,8 @@ class Web:
         issue = data['issue']
         issue_num = issue['number']
         action = data['action']
+        if issue['user']['login'] == 'taine-bot':
+            return
 
         # we only really care about opened or closed
         if action == "closed":
@@ -59,11 +61,11 @@ class Web:
         comment = data['comment']
         action = data['action']
         username = comment['user']['login']
+        if username == "taine-bot":
+            return  # don't infinitely add comments
 
         # only care about create
         if action == "created":
-            if username == "taine-bot":
-                return   # don't infinitely add comments
             try:
                 report = Report.from_github(issue_num)
             except ReportException:
