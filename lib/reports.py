@@ -1,3 +1,5 @@
+import re
+
 import discord
 from cachetools import LRUCache
 
@@ -55,6 +57,16 @@ class Report:
         return inst
 
     @classmethod
+    def from_issue(cls, issue):
+        attachments = [{
+            "msg": issue['body'],
+            "author": "GitHub",
+            "veri": 0
+        }]
+        return cls("GitHub", get_next_report_num("AVR"), issue['title'], -1,  # pri is created at -1 for unresolve
+                   0, attachments, None, 0, 0, issue['number'])
+
+    @classmethod
     def from_dict(cls, report_dict):
         return cls(**report_dict)
 
@@ -73,6 +85,14 @@ class Report:
         except KeyError:
             raise ReportException("Report not found.")
 
+    @classmethod
+    def from_github(cls, issue_num):
+        reports = db.jget("reports", {})
+        try:
+            return cls.from_dict(next(r for r in reports.values() if r['github_issue'] == issue_num))
+        except StopIteration:
+            raise ReportException("Report not found.")
+
     def commit(self):
         reports = db.jget("reports", {})
         reports[self.report_id] = self.to_dict()
@@ -80,7 +100,10 @@ class Report:
 
     def get_embed(self, detailed=False, ctx=None):
         embed = discord.Embed()
-        embed.add_field(name="Added By", value=f"<@{self.reporter}>")
+        if re.match(r"\d+", self.reporter):
+            embed.add_field(name="Added By", value=f"<@{self.reporter}>")
+        else:
+            embed.add_field(name="Added By", value=self.reporter)
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
         if self.report_id.startswith("AFR"):
             # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
@@ -113,7 +136,10 @@ class Report:
                 raise ValueError("Context not supplied for detailed call.")
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
-                user = ctx.message.server.get_member(attachment['author'])
+                if re.match(r"\d+", attachment['author']):
+                    user = ctx.message.server.get_member(attachment['author'])
+                else:
+                    user = attachment['author']
                 msg = attachment['msg'][:1020] or "No details."
                 embed.add_field(name=f"{VERI_EMOJI.get(attachment['veri'], '')} {user}",
                                 value=msg)
@@ -125,10 +151,11 @@ class Report:
             return self.attachments[0]['msg']
         return self.title
 
-    async def add_attachment(self, attachment):
+    async def add_attachment(self, attachment, add_to_github=True):
         self.attachments.append(attachment)
-        msg = f"{VERI_KEY.get(attachment['veri'], '')} - {attachment['author']}\n\n{attachment['msg']}"
-        await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+        if add_to_github:
+            msg = f"{VERI_KEY.get(attachment['veri'], '')} - {attachment['author']}\n\n{attachment['msg']}"
+            await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
 
     async def canrepro(self, author, msg):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
@@ -174,13 +201,13 @@ class Report:
         self.downvotes += 1
         await self.add_attachment(attachment)
 
-    async def addnote(self, author, msg):
+    async def addnote(self, author, msg, add_to_github=True):
         attachment = {
             'author': author,
             'msg': msg,
             'veri': 0
         }
-        await self.add_attachment(attachment)
+        await self.add_attachment(attachment, add_to_github)
 
     async def get_message(self, ctx):
         if self.message is None:

@@ -302,4 +302,5 @@ if __name__ == '__main__':
         print("token or github metadata not set.")
     else:
         GitHubClient.initialize(GITHUB_TOKEN, GITHUB_REPO)  # initialize
+        bot.load_extension("web.web")
         bot.run(TOKEN)

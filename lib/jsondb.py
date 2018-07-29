@@ -14,7 +14,7 @@ class JSONDB:
         else:
             with open(path) as f:
                 data = json.load(f)
-            return data
+        return data
 
     def jset(self, key, value):
         path = f"{self.path}{key}.json"
