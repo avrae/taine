@@ -63,7 +63,8 @@ class Report:
             "author": "GitHub",
             "veri": 0
         }]
-        return cls("GitHub", get_next_report_num("AVR"), issue['title'], -1,  # pri is created at -1 for unresolve
+        return cls("GitHub", f"AVR-{get_next_report_num('AVR')}", issue['title'], -1,
+                   # pri is created at -1 for unresolve
                    0, attachments, None, 0, 0, issue['number'])
 
     @classmethod
