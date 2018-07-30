@@ -246,7 +246,7 @@ async def reidentify(ctx, report_id, identifier):
     await bot.say(f"Reassigned {report.report_id} as {new_report.report_id}.")
 
 
-@bot.command(pass_context=True)
+@bot.command(pass_context=True, aliases=['pri'])
 async def priority(ctx, _id, pri: int, *, msg=''):
     """Owner only - Changes the priority of a report."""
     if not ctx.message.author.id == OWNER_ID: return
