@@ -154,7 +154,7 @@ class Report:
 
     async def add_attachment(self, attachment, add_to_github=True):
         self.attachments.append(attachment)
-        if add_to_github:
+        if add_to_github and self.github_issue:
             msg = f"{VERI_KEY.get(attachment['veri'], '')} - {attachment['author']}\n\n{attachment['msg']}"
             await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
 
@@ -241,7 +241,7 @@ class Report:
             finally:
                 self.message = None
 
-        if close_github_issue:
+        if close_github_issue and self.github_issue:
             await GitHubClient.get_instance().close_issue(self.github_issue)
 
     async def unresolve(self, ctx, msg='', open_github_issue=True):
@@ -255,7 +255,7 @@ class Report:
         msg_ = await ctx.bot.send_message(ctx.bot.get_channel(TRACKER_CHAN), embed=self.get_embed())
         self.message = msg_.id
 
-        if open_github_issue:
+        if open_github_issue and self.github_issue:
             await GitHubClient.get_instance().open_issue(self.github_issue)
 
 
