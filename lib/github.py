@@ -25,9 +25,12 @@ class GitHubClient:
             raise ValueError("Client not initialized")
         return cls._instance
 
-    async def create_issue(self, title, description):
+    async def create_issue(self, title, description, labels=None):
+        if labels is None:
+            labels = []
+
         def _():
-            return self.repo.create_issue(title, description)
+            return self.repo.create_issue(title, description, labels=labels)
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
@@ -35,6 +38,13 @@ class GitHubClient:
         def _():
             issue = self.repo.get_issue(issue_num)
             return issue.create_comment(description)
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
+
+    async def label_issue(self, issue_num, labels):
+        def _():
+            issue = self.repo.get_issue(issue_num)
+            issue.edit(labels=labels)
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
 

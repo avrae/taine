@@ -13,6 +13,12 @@ PRIORITY = {
     0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low", 5: "P5: Trivial",
     6: "Pending/Other"
 }
+PRIORITY_LABELS = {
+    0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low", 5: "P5: Trivial"
+}
+TYPE_LABELS = {
+    "AVR": "bug", "AFR": "featurereq", "DDB": "bug"
+}
 VERI_EMOJI = {
     -2: "\u2b07",  # DOWNVOTE
     -1: "\u274c",  # CROSS MARK
@@ -52,7 +58,8 @@ class Report:
     async def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None,
                   severity: int = 6, verification: int = 0):
         inst = cls(reporter, report_id, title, severity, verification, attachments, message)
-        issue = await GitHubClient.get_instance().create_issue(f"{report_id} {title}", inst.get_github_desc())
+        labels = [l for l in [TYPE_LABELS.get(report_id[:3])] if l]
+        issue = await GitHubClient.get_instance().create_issue(f"{report_id} {title}", inst.get_github_desc(), labels)
         inst.github_issue = issue.number
         return inst
 
@@ -265,6 +272,11 @@ class Report:
         pending = db.jget("pending-reports", [])
         pending.append(self.report_id)
         db.jset("pending-reports", pending)
+
+    async def update_labels(self):
+        labels = [TYPE_LABELS.get(self.report_id[:3]), PRIORITY_LABELS.get(self.severity)]
+        labels = [l for l in labels if l]
+        await GitHubClient.get_instance().label_issue(self.github_issue, labels)
 
 
 def get_next_report_num(identifier):

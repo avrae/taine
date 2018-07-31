@@ -242,6 +242,8 @@ async def reidentify(ctx, report_id, identifier):
     new_report.report_id = f"{identifier}-{id_num}"
     msg = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=new_report.get_embed())
     new_report.message = msg.id
+    if new_report.github_issue:
+        await new_report.update_labels()
     new_report.commit()
     await bot.say(f"Reassigned {report.report_id} as {new_report.report_id}.")
 
@@ -254,7 +256,10 @@ async def priority(ctx, _id, pri: int, *, msg=''):
 
     report.severity = pri
     if msg:
-        report.addnote(ctx.message.author.id, f"Priority changed to {pri} - {msg}")
+        await report.addnote(ctx.message.author.id, f"Priority changed to {pri} - {msg}")
+
+    if report.github_issue:
+        await report.update_labels()
 
     report.commit()
     await report.update(ctx)

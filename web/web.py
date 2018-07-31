@@ -54,6 +54,7 @@ class Web:
                 report = Report.from_issue(issue)
                 await GitHubClient.get_instance().add_issue_comment(issue['number'],
                                                                     f"Tracked as `{report.report_id}`.")
+                await report.update_labels()
 
             await report.unresolve(ContextProxy(self.bot), None, False)
             report.commit()
