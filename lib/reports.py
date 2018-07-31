@@ -224,8 +224,8 @@ class Report:
     async def update(self, ctx):
         await ctx.bot.edit_message(await self.get_message(ctx), embed=self.get_embed())
 
-    async def resolve(self, ctx, msg='', close_github_issue=True):
-        if self.severity == -1:
+    async def resolve(self, ctx, msg='', close_github_issue=True, pend=False, ignore_closed=False):
+        if self.severity == -1 and not ignore_closed:
             raise ReportException("This report is already closed.")
 
         self.severity = -1
@@ -244,6 +244,9 @@ class Report:
         if close_github_issue and self.github_issue:
             await GitHubClient.get_instance().close_issue(self.github_issue)
 
+        if pend:
+            self.pend()
+
     async def unresolve(self, ctx, msg='', open_github_issue=True):
         if not self.severity == -1:
             raise ReportException("This report is still open.")
@@ -257,6 +260,11 @@ class Report:
 
         if open_github_issue and self.github_issue:
             await GitHubClient.get_instance().open_issue(self.github_issue)
+
+    def pend(self):
+        pending = db.jget("pending-reports", [])
+        pending.append(self.report_id)
+        db.jset("pending-reports", pending)
 
 
 def get_next_report_num(identifier):

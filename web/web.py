@@ -44,7 +44,7 @@ class Web:
             except ReportException:  # report not found
                 return  # oh well
 
-            await report.resolve(ContextProxy(self.bot), None, False)
+            await report.resolve(ContextProxy(self.bot), None, False, pend=True)
             report.commit()
         elif action in ("opened", "reopened"):
             # is the issue new?

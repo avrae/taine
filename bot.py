@@ -272,7 +272,7 @@ async def pending(ctx, *reports):
         except ReportException:
             not_found += 1
             continue
-        report.severity = -2
+        report.pend()
         report.commit()
         await report.update(ctx)
     if not not_found:
@@ -286,11 +286,9 @@ async def update(ctx, build_id: int):
     """Owner only - To be run after an update. Resolves all -P2 reports."""
     if not ctx.message.author.id == OWNER_ID: return
     changelog = f"**Build {build_id}**\n"
-    for _id, raw_report in bot.db.jget("reports", {}).items():
-        report = Report.from_dict(raw_report)
-        if not report.severity == -2:
-            continue
-        await report.resolve(ctx, f"Patched in build {build_id}")
+    for _id in bot.db.jget("pending-reports", []):
+        report = Report.from_id(_id)
+        await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
         report.commit()
         changelog += f"- `{report.report_id}` {report.title}\n"
     await bot.send_message(ctx.message.channel, changelog)
