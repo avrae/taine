@@ -34,7 +34,7 @@ class Web:
         issue = data['issue']
         issue_num = issue['number']
         action = data['action']
-        if issue['user']['login'] == 'taine-bot':
+        if data['sender']['login'] == 'taine-bot':
             return
 
         # we only really care about opened or closed
