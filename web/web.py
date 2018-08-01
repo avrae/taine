@@ -75,7 +75,7 @@ class Web:
             except ReportException:
                 return  # oh well
 
-            await report.addnote(f"GitHub - {username}", comment['body'], False)
+            await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), False)
             report.commit()
             await report.update(ContextProxy(self.bot))
 

@@ -72,7 +72,8 @@ async def on_message(message):
         report_id = f"{report_type}-{report_num}"
 
         report = await Report.new(message.author.id, report_id, title,
-                                  [{'author': message.author.id, 'msg': message.content, 'veri': 0}])
+                                  [{'author': message.author.id, 'msg': message.content, 'veri': 0}],
+                                  author=message.author)
         report_message = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
         report.message = report_message.id
         report.commit()
@@ -126,7 +127,7 @@ async def bug(ctx):
               f"**Context**: {context.content}"
 
     report = await Report.new(ctx.message.author.id, report_id, title,
-                              [{'author': ctx.message.author.id, 'msg': details, 'veri': 0}])
+                              [{'author': ctx.message.author.id, 'msg': details, 'veri': 0}], author=ctx.message.author)
     report_message = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
     report.message = report_message.id
     report.commit()
@@ -146,7 +147,7 @@ async def viewreport(ctx, _id):
 async def canrepro(ctx, _id, *, msg=''):
     """Adds reproduction to a report."""
     report = Report.from_id(_id)
-    await report.canrepro(ctx.message.author.id, msg)
+    await report.canrepro(ctx.message.author.id, msg, ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -156,7 +157,7 @@ async def canrepro(ctx, _id, *, msg=''):
 async def upvote(ctx, _id, *, msg=''):
     """Adds an upvote to the selected feature request."""
     report = Report.from_id(_id)
-    await report.upvote(ctx.message.author.id, msg)
+    await report.upvote(ctx.message.author.id, msg, ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -166,7 +167,7 @@ async def upvote(ctx, _id, *, msg=''):
 async def cannotrepro(ctx, _id, *, msg=''):
     """Adds nonreproduction to a report."""
     report = Report.from_id(_id)
-    await report.cannotrepro(ctx.message.author.id, msg)
+    await report.cannotrepro(ctx.message.author.id, msg, ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -176,7 +177,7 @@ async def cannotrepro(ctx, _id, *, msg=''):
 async def downvote(ctx, _id, *, msg=''):
     """Adds a downvote to the selected feature request."""
     report = Report.from_id(_id)
-    await report.downvote(ctx.message.author.id, msg)
+    await report.downvote(ctx.message.author.id, msg, ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -186,7 +187,7 @@ async def downvote(ctx, _id, *, msg=''):
 async def note(ctx, _id, *, msg=''):
     """Adds a note to a report."""
     report = Report.from_id(_id)
-    await report.addnote(ctx.message.author.id, msg)
+    await report.addnote(ctx.message.author.id, msg, ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -200,7 +201,7 @@ async def attach(ctx, report_id, message_id):
         msg = next(m for m in bot.messages if m.id == message_id)
     except StopIteration:
         return await bot.say("I cannot find that message.")
-    await report.addnote(msg.author.id, msg.content)
+    await report.addnote(msg.author.id, msg.content, ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -256,7 +257,7 @@ async def priority(ctx, _id, pri: int, *, msg=''):
 
     report.severity = pri
     if msg:
-        await report.addnote(ctx.message.author.id, f"Priority changed to {pri} - {msg}")
+        await report.addnote(ctx.message.author.id, f"Priority changed to {pri} - {msg}", ctx)
 
     if report.github_issue:
         await report.update_labels()

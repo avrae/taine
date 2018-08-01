@@ -56,10 +56,14 @@ class Report:
 
     @classmethod
     async def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None,
-                  severity: int = 6, verification: int = 0):
+                  severity: int = 6, verification: int = 0, author=None):
         inst = cls(reporter, report_id, title, severity, verification, attachments, message)
         labels = [l for l in [TYPE_LABELS.get(report_id[:3])] if l]
-        issue = await GitHubClient.get_instance().create_issue(f"{report_id} {title}", inst.get_github_desc(), labels)
+        if author:
+            desc = f"{inst.get_github_desc()}\n\n- {author}"
+        else:
+            desc = inst.get_github_desc()
+        issue = await GitHubClient.get_instance().create_issue(f"{report_id} {title}", desc, labels)
         inst.github_issue = issue.number
         return inst
 
@@ -136,6 +140,8 @@ class Report:
                                   f"Verify with ~cr/~cnr {self.report_id} [note]")
 
         embed.title = f"`{self.report_id}` {self.title}"
+        if len(embed.title) > 256:
+            embed.title = f"{embed.title[:250]}..."
         if self.github_issue:
             embed.url = f"{GITHUB_BASE}/{GitHubClient.get_instance().repo_name}/issues/{self.github_issue}"
         embed.description = f"*{len(self.attachments)} notes*"
@@ -159,14 +165,17 @@ class Report:
             return self.attachments[0]['msg']
         return self.title
 
-    async def add_attachment(self, attachment, add_to_github=True):
+    async def add_attachment(self, ctx, attachment, add_to_github=True):
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:
-            msg = f"{VERI_KEY.get(attachment['veri'], '')} - {attachment['author']}\n\n{attachment['msg']}"
+            username = str(
+                next((m for m in ctx.bot.get_all_members() if m.id == attachment['author']), attachment['author']))
+            msg = f"{VERI_KEY.get(attachment['veri'], '')} - {username}\n\n" \
+                  f"{attachment['msg']}"
             await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
 
-    async def canrepro(self, author, msg):
-        if [a for a in self.attachments if a['author'] == author and a['veri']]:
+    async def canrepro(self, author, msg, ctx):
+        if [a for a in self.attachments if a['author'] == ctx and a['veri']]:
             raise ReportException("You have already verified this report.")
         attachment = {
             'author': author,
@@ -174,9 +183,9 @@ class Report:
             'veri': 1
         }
         self.verification += 1
-        await self.add_attachment(attachment)
+        await self.add_attachment(ctx, attachment)
 
-    async def upvote(self, author, msg):
+    async def upvote(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already upvoted this report.")
         attachment = {
@@ -185,9 +194,9 @@ class Report:
             'veri': 2
         }
         self.upvotes += 1
-        await self.add_attachment(attachment)
+        await self.add_attachment(ctx, attachment)
 
-    async def cannotrepro(self, author, msg):
+    async def cannotrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already verified this report.")
         attachment = {
@@ -196,9 +205,9 @@ class Report:
             'veri': -1
         }
         self.verification -= 1
-        await self.add_attachment(attachment)
+        await self.add_attachment(ctx, attachment)
 
-    async def downvote(self, author, msg):  # lol Dusk was here
+    async def downvote(self, author, msg, ctx):  # lol Dusk was here
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already downvoted this report.")
         attachment = {
@@ -207,15 +216,15 @@ class Report:
             'veri': -2
         }
         self.downvotes += 1
-        await self.add_attachment(attachment)
+        await self.add_attachment(ctx, attachment)
 
-    async def addnote(self, author, msg, add_to_github=True):
+    async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = {
             'author': author,
             'msg': msg,
             'veri': 0
         }
-        await self.add_attachment(attachment, add_to_github)
+        await self.add_attachment(ctx, attachment, add_to_github)
 
     async def get_message(self, ctx):
         if self.message is None:
@@ -237,7 +246,7 @@ class Report:
 
         self.severity = -1
         if msg:
-            await self.addnote(ctx.message.author.id, f"Resolved - {msg}")
+            await self.addnote(ctx.message.author.id, f"Resolved - {msg}", ctx)
 
         msg_ = await self.get_message(ctx)
         if msg_:
@@ -260,7 +269,7 @@ class Report:
 
         self.severity = 6
         if msg:
-            await self.addnote(ctx.message.author.id, f"Unresolved - {msg}")
+            await self.addnote(ctx.message.author.id, f"Unresolved - {msg}", ctx)
 
         msg_ = await ctx.bot.send_message(ctx.bot.get_channel(TRACKER_CHAN), embed=self.get_embed())
         self.message = msg_.id
