@@ -297,6 +297,8 @@ async def update(ctx, build_id: int):
         await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
         report.commit()
         changelog += f"- `{report.report_id}` {report.title}\n"
+
+    bot.db.jset("pending-reports", [])
     await bot.send_message(ctx.message.channel, changelog)
     await bot.delete_message(ctx.message)
 
