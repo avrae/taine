@@ -52,6 +52,7 @@ class Web:
                 report = Report.from_github(issue_num)
             except ReportException:  # report not found
                 report = Report.from_issue(issue)
+                await GitHubClient.get_instance().rename_issue(issue['number'], f"{report.report_id} {issue['title']}")
                 await GitHubClient.get_instance().add_issue_comment(issue['number'],
                                                                     f"Tracked as `{report.report_id}`.")
                 await report.update_labels()

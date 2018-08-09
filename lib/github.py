@@ -65,3 +65,10 @@ class GitHubClient:
             issue.edit(state="open")
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
+
+    async def rename_issue(self, issue_num, new_title):
+        def _():
+            issue = self.repo.get_issue(issue_num)
+            issue.edit(title=new_title)
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
