@@ -165,6 +165,11 @@ class Report:
             return self.attachments[0]['msg']
         return self.title
 
+    def get_issue_link(self):
+        if self.github_issue is None:
+            return None
+        return f"https://github.com/{GitHubClient.get_instance().repo_name}/issues/{self.github_issue}"
+
     async def add_attachment(self, ctx, attachment, add_to_github=True):
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:

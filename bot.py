@@ -3,6 +3,7 @@ import os
 import random
 import re
 
+import discord
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 
@@ -291,16 +292,23 @@ async def pending(ctx, *reports):
 async def update(ctx, build_id: int, *, msg=""):
     """Owner only - To be run after an update. Resolves all -P2 reports."""
     if not ctx.message.author.id == OWNER_ID: return
-    changelog = f"**Build {build_id}**\n"
+    changelog = ""
     for _id in bot.db.jget("pending-reports", []):
         report = Report.from_id(_id)
         await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
         report.commit()
-        changelog += f"- `{report.report_id}` {report.title}\n"
+        action = "Fixed"
+        if report.title.startswith("AFR"):
+            action = "Added"
+        if report.get_issue_link():
+            changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
+        else:
+            changelog += f"- {action} `{report.report_id}` {report.title}\n"
     changelog += msg
 
     bot.db.jset("pending-reports", [])
-    await bot.send_message(ctx.message.channel, changelog)
+    await bot.send_message(ctx.message.channel,
+                           embed=discord.Embed(title=f"**Build {build_id}**", description=changelog, colour=0x87d37c))
     await bot.delete_message(ctx.message)
 
 
