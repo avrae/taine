@@ -298,7 +298,7 @@ async def update(ctx, build_id: int, *, msg=""):
         await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
         report.commit()
         action = "Fixed"
-        if report.title.startswith("AFR"):
+        if report.report_id.startswith("AFR"):
             action = "Added"
         if report.get_issue_link():
             changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
