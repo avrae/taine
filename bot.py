@@ -2,6 +2,8 @@ import copy
 import os
 import random
 import re
+import sys
+import traceback
 
 import discord
 from discord.ext import commands
@@ -37,6 +39,7 @@ REACTIONS = [
     "\U0001f916",  # robot
     "\U0001f409",  # dragon
 ]
+EXTENSIONS = ("web.web", "cogs.aliases")
 
 
 @bot.event
@@ -52,6 +55,7 @@ async def on_command_error(error, ctx):
     if isinstance(error, CommandNotFound):
         return
     await bot.send_message(ctx.message.channel, f"Error: {error}")
+    traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
 @bot.event
@@ -317,5 +321,6 @@ if __name__ == '__main__':
         print("token or github metadata not set.")
     else:
         GitHubClient.initialize(GITHUB_TOKEN, GITHUB_REPO)  # initialize
-        bot.load_extension("web.web")
+        for extension in EXTENSIONS:
+            bot.load_extension(extension)
         bot.run(TOKEN)

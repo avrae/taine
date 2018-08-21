@@ -1,4 +1,5 @@
 from bot import GITHUB_REPO, OWNER_ID, BUG_CHAN, DDB_CHAN, FEATURE_CHAN, TRACKER_CHAN, bot
+from cogs.aliases import ALIAS_REPO
 
 
 def test_constants():
@@ -9,3 +10,4 @@ def test_constants():
     assert FEATURE_CHAN == "297190603819843586"
     assert TRACKER_CHAN == "360855116057673729"
     assert bot.command_prefix == '~'
+    assert ALIAS_REPO == "avrae/avrae-docs"
