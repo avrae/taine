@@ -74,7 +74,14 @@ class Report:
             "author": "GitHub",
             "veri": 0
         }]
-        return cls("GitHub", f"AVR-{get_next_report_num('AVR')}", issue['title'], -1,
+        id_match = re.match(r'([A-Z]{3})(-\d+)?\s', issue['title'])
+        if id_match:
+            identifier = id_match.group(1)
+            report_num = get_next_report_num(identifier)
+            report_id = f"{identifier}-{report_num}"
+        else:
+            report_id = f"AVR-{get_next_report_num('AVR')}"
+        return cls("GitHub", report_id, issue['title'], -1,
                    # pri is created at -1 for unresolve
                    0, attachments, None, 0, 0, issue['number'])
 
