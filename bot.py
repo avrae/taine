@@ -66,7 +66,7 @@ async def on_message(message):
         match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)\n", message.content)
         report_type = 'AVR'
     elif message.channel.id == FEATURE_CHAN:  # feature-request
-        match = re.match(r"\**Feature [Rr]equest\**\s?:?(.+?)\n", message.content)
+        match = re.match(r"\**Feature [Rr]equest\**:?\s?(.+?)\n", message.content)
         report_type = 'AFR'
     elif message.channel.id == DDB_CHAN:  # bug-hunting-ddb
         match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)\n", message.content)
