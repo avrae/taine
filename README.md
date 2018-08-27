@@ -1,5 +1,5 @@
 # taine
-[![CodeFactor](https://www.codefactor.io/repository/github/avrae/taine/badge)](https://www.codefactor.io/repository/github/avrae/taine)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/7c5174b6f97a4144b2c7a1a826f0bbee)](https://www.codacy.com/app/mommothazaz123/taine?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=avrae/taine&amp;utm_campaign=Badge_Grade)
 [![Build Status](https://travis-ci.org/avrae/taine.svg?branch=master)](https://travis-ci.org/avrae/taine)
 
 Taine is the main bot to track Avrae bugs and feature requests in Discord.  
