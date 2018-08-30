@@ -75,12 +75,12 @@ class Report:
             "veri": 0
         }]
         title = issue['title']
-        id_match = re.match(r'([A-Z]{3})(-\d+)?\s', issue['title'])
-        if id_match:
-            identifier = id_match.group(1)
+        allowed_prefixes = ['AFR', 'AVR', 'DDB', 'WEB']
+        if title[:3] in allowed_prefixes:
+            identifier = title[:3]
             report_num = get_next_report_num(identifier)
             report_id = f"{identifier}-{report_num}"
-            title = title[len(id_match.group(0)):]
+            title = title[len(title[:3]):]
         else:
             report_id = f"AVR-{get_next_report_num('AVR')}"
         return cls("GitHub", report_id, title, -1,
