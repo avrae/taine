@@ -63,13 +63,13 @@ async def on_message(message):
     report_type = None
     match = None
     if message.channel.id == BUG_CHAN:  # bug-reports
-        match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)\n", message.content)
+        match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'AVR'
     elif message.channel.id == FEATURE_CHAN:  # feature-request
-        match = re.match(r"\**Feature [Rr]equest\**:?\s?(.+?)\n", message.content)
+        match = re.match(r"\**Feature [Rr]equest\**:?\s?(.+?)(\n|$)", message.content)
         report_type = 'AFR'
     elif message.channel.id == DDB_CHAN:  # bug-hunting-ddb
-        match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)\n", message.content)
+        match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'DDB'
     if match:
         title = match.group(1)
