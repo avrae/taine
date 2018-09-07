@@ -107,7 +107,7 @@ class Report:
             embed.add_field(name="Added By", value=self.reporter)
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
         if self.report_id.startswith("AFR"):
-            # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
+            # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Adding useless features since 2018!
             embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
             embed.set_footer(text=f"~report {self.report_id} for details | Vote with ~up/~down {self.report_id} [note]")
