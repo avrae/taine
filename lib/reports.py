@@ -17,7 +17,7 @@ PRIORITY_LABELS = {
     0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low", 5: "P5: Trivial"
 }
 TYPE_LABELS = {
-    "AVR": "bug", "AFR": "featurereq", "DDB": "bug"
+    "AVR": "bug", "AFR": "featurereq", "DDB": "bug", "WEB": "web"
 }
 VERI_EMOJI = {
     -2: "\u2b07",  # DOWNVOTE

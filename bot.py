@@ -24,6 +24,7 @@ BUG_CHAN = "336792750773239809"  # AVRAE DEV "336792750773239809" Make sure all 
 DDB_CHAN = "463580965810208768"  # AVRAE DEV "463580965810208768" the bot might not work properly!
 FEATURE_CHAN = "297190603819843586"  # AVRAE DEV "297190603819843586"
 TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
+WEB_CHAN = "487486995527106580"
 REACTIONS = [
     "\U0001f640",  # scream_cat
     "\U0001f426",  # bird
@@ -71,6 +72,9 @@ async def on_message(message):
     elif message.channel.id == DDB_CHAN:  # bug-hunting-ddb
         match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'DDB'
+    elif message.channel.id == WEB_CHAN:  # web-bug-reports
+        match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
+        report_type = 'WEB'
     if match:
         title = match.group(1)
         report_num = get_next_report_num(report_type)
