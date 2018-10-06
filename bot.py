@@ -76,7 +76,7 @@ async def on_message(message):
         match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'WEB'
     if match:
-        title = match.group(1)
+        title = match.group(1).strip(" *")
         report_num = get_next_report_num(report_type)
         report_id = f"{report_type}-{report_num}"
 
