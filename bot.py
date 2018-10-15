@@ -301,7 +301,7 @@ async def update(ctx, build_id: int, *, msg=""):
     """Owner only - To be run after an update. Resolves all -P2 reports."""
     if not ctx.message.author.id == OWNER_ID: return
     changelog = ""
-    for _id in bot.db.jget("pending-reports", []):
+    for _id in list(set(bot.db.jget("pending-reports", []))):
         report = Report.from_id(_id)
         await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
         report.commit()
