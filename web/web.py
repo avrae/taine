@@ -7,6 +7,8 @@ from lib.github import GitHubClient
 from lib.reports import Report, ReportException
 
 
+PRI_LABEL_NAMES = ("P0", "P1", "P2", "P3", "P4", "P5")
+
 class Web:
     # this is probably a really hacky way to run a webhook handler, but eh
     def __init__(self, bot):
@@ -63,6 +65,24 @@ class Web:
 
             await report.unresolve(ContextProxy(self.bot), None, False)
             report.commit()
+        elif action in ("labeled", "unlabeled"):
+            try:
+                report = Report.from_github(issue_num)
+            except ReportException:  # report not found
+                return  # oh well
+
+            if len([l for l in issue['labels'] if any(n in l['name'] for n in PRI_LABEL_NAMES)]) > 1:
+                return  # multiple priority labels
+
+            label_names = [l['name'] for l in issue['labels']]
+            priority = -1
+            for i, pri in enumerate(PRI_LABEL_NAMES):
+                if any(pri in n for n in label_names):
+                    priority = i
+                    break
+            report.severity = priority
+            report.commit()
+            await report.update(ContextProxy(self.bot))
 
     async def issue_comment_handler(self, data):
         issue = data['issue']
