@@ -42,7 +42,10 @@ class Report:
     message_cache = LRUCache(maxsize=100)
 
     def __init__(self, reporter: str, report_id: str, title: str, severity: int, verification: int, attachments: list,
-                 message: str, upvotes: int = 0, downvotes: int = 0, github_issue: int = None):
+                 message: str, upvotes: int = 0, downvotes: int = 0, github_issue: int = None,
+                 subscribers: list = None):
+        if subscribers is None:
+            subscribers = []
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
@@ -53,11 +56,15 @@ class Report:
         self.attachments = attachments
         self.message = message
         self.github_issue = github_issue
+        self.subscribers = subscribers
 
     @classmethod
     async def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None,
                   severity: int = 6, verification: int = 0, author=None):
-        inst = cls(reporter, report_id, title, severity, verification, attachments, message)
+        subscribers = None
+        if re.match(r"\d+", reporter):
+            subscribers = [reporter]
+        inst = cls(reporter, report_id, title, severity, verification, attachments, message, subscribers=subscribers)
         labels = [l for l in [TYPE_LABELS.get(report_id[:3])] if l]
         if author:
             desc = f"{inst.get_github_desc()}\n\n- {author}"
@@ -95,7 +102,8 @@ class Report:
         return {
             'reporter': self.reporter, 'report_id': self.report_id, 'title': self.title, 'severity': self.severity,
             'verification': self.verification, 'upvotes': self.upvotes, 'downvotes': self.downvotes,
-            'attachments': self.attachments, 'message': self.message, 'github_issue': self.github_issue
+            'attachments': self.attachments, 'message': self.message, 'github_issue': self.github_issue,
+            'subscribers': self.subscribers
         }
 
     @classmethod
@@ -198,6 +206,7 @@ class Report:
         }
         self.verification += 1
         await self.add_attachment(ctx, attachment)
+        await self.notify_subscribers(ctx, f"New CR by <@{author}>: {msg}")
 
     async def upvote(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
@@ -209,6 +218,7 @@ class Report:
         }
         self.upvotes += 1
         await self.add_attachment(ctx, attachment)
+        await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
 
     async def cannotrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
@@ -220,6 +230,7 @@ class Report:
         }
         self.verification -= 1
         await self.add_attachment(ctx, attachment)
+        await self.notify_subscribers(ctx, f"New CNR by <@{author}>: {msg}")
 
     async def downvote(self, author, msg, ctx):  # lol Dusk was here
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
@@ -231,6 +242,7 @@ class Report:
         }
         self.downvotes += 1
         await self.add_attachment(ctx, attachment)
+        await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
 
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = {
@@ -239,6 +251,7 @@ class Report:
             'veri': 0
         }
         await self.add_attachment(ctx, attachment, add_to_github)
+        await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
 
     async def get_message(self, ctx):
         if self.message is None:
@@ -259,6 +272,7 @@ class Report:
             raise ReportException("This report is already closed.")
 
         self.severity = -1
+        await self.notify_subscribers(ctx, f"Report resolved.")
         if msg:
             await self.addnote(ctx.message.author.id, f"Resolved - {msg}", ctx)
 
@@ -282,6 +296,7 @@ class Report:
             raise ReportException("This report is still open.")
 
         self.severity = 6
+        await self.notify_subscribers(ctx, f"Report unresolved.")
         if msg:
             await self.addnote(ctx.message.author.id, f"Unresolved - {msg}", ctx)
 
@@ -300,6 +315,15 @@ class Report:
         labels = [TYPE_LABELS.get(self.report_id[:3]), PRIORITY_LABELS.get(self.severity)]
         labels = [l for l in labels if l]
         await GitHubClient.get_instance().label_issue(self.github_issue, labels)
+
+    async def notify_subscribers(self, ctx, msg):
+        msg = f"`{self.report_id}` {msg}"
+        for sub in self.subscribers:
+            try:
+                member = next(m for m in ctx.bot.get_all_members if m.id == sub)
+                await ctx.bot.send_message(member, msg)
+            except:
+                continue
 
 
 def get_next_report_num(identifier):

@@ -216,6 +216,20 @@ async def attach(ctx, report_id, message_id):
     await report.update(ctx)
 
 
+@bot.command(pass_context=True)
+async def subscribe(ctx, report_id):
+    """Subscribes to a report."""
+    report = Report.from_id(report_id)
+    author_id = ctx.message.author.id
+    if author_id in report.subscribers:
+        report.subscribers.remove(author_id)
+        await bot.say(f"OK, unsubscribed from `{report.report_id}` - {report.title}.")
+    else:
+        report.subscribers.append(author_id)
+        await bot.say(f"OK, subscribed to `{report.report_id}` - {report.title}.")
+    report.commit()
+
+
 @bot.command(pass_context=True, aliases=['close'])
 async def resolve(ctx, _id, *, msg=''):
     """Owner only - Resolves a report."""
