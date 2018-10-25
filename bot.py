@@ -216,7 +216,7 @@ async def attach(ctx, report_id, message_id):
     await report.update(ctx)
 
 
-@bot.command(pass_context=True)
+@bot.command(pass_context=True, aliases=['sub'])
 async def subscribe(ctx, report_id):
     """Subscribes to a report."""
     report = Report.from_id(report_id)
