@@ -1,5 +1,6 @@
-from bot import GITHUB_REPO, OWNER_ID, BUG_CHAN, DDB_CHAN, FEATURE_CHAN, TRACKER_CHAN, bot
+from bot import GITHUB_REPO, bot
 from cogs.aliases import ALIAS_REPO
+from constants import OWNER_ID, BUG_CHAN, DDB_CHAN, FEATURE_CHAN, TRACKER_CHAN
 
 
 def test_constants():
