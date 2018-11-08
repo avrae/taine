@@ -17,7 +17,7 @@ class Owner:
         if not ctx.message.author.id == constants.OWNER_ID:
             return
         report = Report.from_id(_id)
-        await report.resolve(self, ctx, msg)
+        await report.resolve(ctx, msg)
         report.commit()
         await self.bot.say(f"Resolved `{report.report_id}`: {report.title}.")
 
@@ -27,7 +27,7 @@ class Owner:
         if not ctx.message.author.id == constants.OWNER_ID:
             return
         report = Report.from_id(_id)
-        await report.unresolve(self, ctx, msg)
+        await report.unresolve(ctx, msg)
         report.commit()
         await self.bot.say(f"Unresolved `{report.report_id}`: {report.title}.")
 
@@ -42,7 +42,7 @@ class Owner:
 
         report = Report.from_id(report_id)
         new_report = copy.copy(report)
-        await report.resolve(self, ctx, f"Reassigned as `{identifier}-{id_num}`.", False)
+        await report.resolve(ctx, f"Reassigned as `{identifier}-{id_num}`.", False)
         report.commit()
 
         new_report.report_id = f"{identifier}-{id_num}"
@@ -100,7 +100,7 @@ class Owner:
         changelog = ""
         for _id in list(set(self.bot.db.jget("pending-reports", []))):
             report = Report.from_id(_id)
-            await report.resolve(self, ctx, f"Patched in build {build_id}", ignore_closed=True)
+            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
             report.commit()
             action = "Fixed"
             if report.report_id.startswith("AFR"):
