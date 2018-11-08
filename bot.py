@@ -1,17 +1,16 @@
-import copy
 import os
 import random
 import re
 import sys
 import traceback
 
-import discord
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 
+import constants
 from lib.github import GitHubClient
 from lib.jsondb import JSONDB
-from lib.reports import get_next_report_num, Report, ReportException
+from lib.reports import get_next_report_num, Report
 
 bot = commands.Bot(command_prefix="~")
 bot.db = JSONDB()
@@ -19,12 +18,6 @@ bot.db = JSONDB()
 TOKEN = os.environ.get("TOKEN")  # os.environ.get("TOKEN")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_REPO = "avrae/avrae"
-OWNER_ID = "187421759484592128"  # ZHU "187421759484592128"
-BUG_CHAN = "336792750773239809"  # AVRAE DEV "336792750773239809" Make sure all 4 of these are unique, or else
-DDB_CHAN = "463580965810208768"  # AVRAE DEV "463580965810208768" the bot might not work properly!
-FEATURE_CHAN = "297190603819843586"  # AVRAE DEV "297190603819843586"
-TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
-WEB_CHAN = "487486995527106580"
 REACTIONS = [
     "\U0001f640",  # scream_cat
     "\U0001f426",  # bird
@@ -40,7 +33,7 @@ REACTIONS = [
     "\U0001f916",  # robot
     "\U0001f409",  # dragon
 ]
-EXTENSIONS = ("web.web", "cogs.aliases")
+EXTENSIONS = ("web.web", "cogs.aliases", "cogs.owner")
 
 
 @bot.event
@@ -63,16 +56,16 @@ async def on_command_error(error, ctx):
 async def on_message(message):
     report_type = None
     match = None
-    if message.channel.id == BUG_CHAN:  # bug-reports
+    if message.channel.id == constants.BUG_CHAN:  # bug-reports
         match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'AVR'
-    elif message.channel.id == FEATURE_CHAN:  # feature-request
+    elif message.channel.id == constants.FEATURE_CHAN:  # feature-request
         match = re.match(r"\**Feature [Rr]equest\**:?\s?(.+?)(\n|$)", message.content)
         report_type = 'AFR'
-    elif message.channel.id == DDB_CHAN:  # bug-hunting-ddb
+    elif message.channel.id == constants.DDB_CHAN:  # bug-hunting-ddb
         match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'DDB'
-    elif message.channel.id == WEB_CHAN:  # web-bug-reports
+    elif message.channel.id == constants.WEB_CHAN:  # web-bug-reports
         match = re.match(r"\**What is the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'WEB'
     if match:
@@ -83,7 +76,7 @@ async def on_message(message):
         report = await Report.new(message.author.id, report_id, title,
                                   [{'author': message.author.id, 'msg': message.content, 'veri': 0}],
                                   author=message.author)
-        report_message = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
+        report_message = await bot.send_message(bot.get_channel(constants.TRACKER_CHAN), embed=report.get_embed())
         report.message = report_message.id
         report.commit()
         await bot.add_reaction(message, random.choice(REACTIONS))
@@ -137,7 +130,7 @@ async def bug(ctx):
 
     report = await Report.new(ctx.message.author.id, report_id, title,
                               [{'author': ctx.message.author.id, 'msg': details, 'veri': 0}], author=ctx.message.author)
-    report_message = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=report.get_embed())
+    report_message = await bot.send_message(bot.get_channel(constants.TRACKER_CHAN), embed=report.get_embed())
     report.message = report_message.id
     report.commit()
 
@@ -228,110 +221,6 @@ async def subscribe(ctx, report_id):
         report.subscribers.append(author_id)
         await bot.say(f"OK, subscribed to `{report.report_id}` - {report.title}.")
     report.commit()
-
-
-@bot.command(pass_context=True, aliases=['close'])
-async def resolve(ctx, _id, *, msg=''):
-    """Owner only - Resolves a report."""
-    if not ctx.message.author.id == OWNER_ID: return
-    report = Report.from_id(_id)
-    await report.resolve(ctx, msg)
-    report.commit()
-    await bot.say(f"Resolved `{report.report_id}`: {report.title}.")
-
-
-@bot.command(pass_context=True, aliases=['open'])
-async def unresolve(ctx, _id, *, msg=''):
-    """Owner only - Unresolves a report."""
-    if not ctx.message.author.id == OWNER_ID: return
-    report = Report.from_id(_id)
-    await report.unresolve(ctx, msg)
-    report.commit()
-    await bot.say(f"Unresolved `{report.report_id}`: {report.title}.")
-
-
-@bot.command(pass_context=True)
-async def reidentify(ctx, report_id, identifier):
-    """Owner only - Changes the identifier of a report."""
-    if not ctx.message.author.id == OWNER_ID: return
-
-    identifier = identifier.upper()
-    id_num = get_next_report_num(identifier)
-
-    report = Report.from_id(report_id)
-    new_report = copy.copy(report)
-    await report.resolve(ctx, f"Reassigned as `{identifier}-{id_num}`.", False)
-    report.commit()
-
-    new_report.report_id = f"{identifier}-{id_num}"
-    msg = await bot.send_message(bot.get_channel(TRACKER_CHAN), embed=new_report.get_embed())
-    new_report.message = msg.id
-    if new_report.github_issue:
-        await new_report.update_labels()
-    new_report.commit()
-    await bot.say(f"Reassigned {report.report_id} as {new_report.report_id}.")
-
-
-@bot.command(pass_context=True, aliases=['pri'])
-async def priority(ctx, _id, pri: int, *, msg=''):
-    """Owner only - Changes the priority of a report."""
-    if not ctx.message.author.id == OWNER_ID: return
-    report = Report.from_id(_id)
-
-    report.severity = pri
-    if msg:
-        await report.addnote(ctx.message.author.id, f"Priority changed to {pri} - {msg}", ctx)
-
-    if report.github_issue:
-        await report.update_labels()
-
-    report.commit()
-    await report.update(ctx)
-    await bot.say(f"Changed priority of `{report.report_id}`: {report.title} to P{pri}.")
-
-
-@bot.command(pass_context=True, aliases=['pend'])
-async def pending(ctx, *reports):
-    """Owner only - Marks reports as pending for next patch."""
-    if not ctx.message.author.id == OWNER_ID: return
-    not_found = 0
-    for _id in reports:
-        try:
-            report = Report.from_id(_id)
-        except ReportException:
-            not_found += 1
-            continue
-        report.pend()
-        report.commit()
-        await report.update(ctx)
-    if not not_found:
-        await bot.say(f"Marked {len(reports)} reports as patch pending.")
-    else:
-        await bot.say(f"Marked {len(reports)} reports as patch pending. {not_found} reports were not found.")
-
-
-@bot.command(pass_context=True)
-async def update(ctx, build_id: int, *, msg=""):
-    """Owner only - To be run after an update. Resolves all -P2 reports."""
-    if not ctx.message.author.id == OWNER_ID: return
-    changelog = ""
-    for _id in list(set(bot.db.jget("pending-reports", []))):
-        report = Report.from_id(_id)
-        await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
-        report.commit()
-        action = "Fixed"
-        if report.report_id.startswith("AFR"):
-            action = "Added"
-        if report.get_issue_link():
-            changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
-        else:
-            changelog += f"- {action} `{report.report_id}` {report.title}\n"
-    changelog += msg
-
-    bot.db.jset("pending-reports", [])
-    await bot.send_message(ctx.message.channel,
-                           embed=discord.Embed(title=f"**Build {build_id}**", description=changelog, colour=0x87d37c))
-    await bot.delete_message(ctx.message)
 
 
 if __name__ == '__main__':

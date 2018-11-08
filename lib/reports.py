@@ -193,7 +193,7 @@ class Report:
             username = str(
                 next((m for m in ctx.bot.get_all_members() if m.id == attachment['author']), attachment['author']))
             msg = f"{VERI_KEY.get(attachment['veri'], '')} - {username}\n\n" \
-                  f"{attachment['msg']}"
+                  f"{reports_to_issues(attachment['msg'])}"
             await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
 
     async def canrepro(self, author, msg, ctx):
@@ -316,6 +316,9 @@ class Report:
         labels = [l for l in labels if l]
         await GitHubClient.get_instance().label_issue(self.github_issue, labels)
 
+    async def edit_title(self, new_title):
+        await GitHubClient.get_instance().rename_issue(self.github_issue, new_title)
+
     async def notify_subscribers(self, ctx, msg):
         msg = f"`{self.report_id}` {msg}"
         for sub in self.subscribers:
@@ -332,6 +335,25 @@ def get_next_report_num(identifier):
     id_nums[identifier] = num
     db.jset("reportnums", id_nums)
     return f"{num:0>3}"
+
+
+def reports_to_issues(text):
+    """
+    Parses all XYZ-### identifiers and adds a link to their GitHub Issue numbers.
+    """
+
+    def report_sub(match):
+        report_id = match.group(1)
+        try:
+            report = Report.from_id(report_id)
+        except ReportException:
+            return report_id
+
+        if report.github_issue:
+            return f"{report_id} (#{report.github_issue})"
+        return report_id
+
+    return re.sub(r"(\w{3}-\d{3,})", report_sub, text)
 
 
 class ReportException(Exception):
