@@ -328,7 +328,7 @@ class Report:
         msg = f"`{self.report_id}` {msg}"
         for sub in self.subscribers:
             try:
-                member = next(m for m in ctx.bot.get_all_members if m.id == sub)
+                member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
                 await ctx.bot.send_message(member, msg)
             except:
                 continue
