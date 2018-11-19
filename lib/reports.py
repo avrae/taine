@@ -286,6 +286,8 @@ class Report:
                 self.message = None
 
         if close_github_issue and self.github_issue:
+            if msg.startswith('dupe'):
+                GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + ["duplicate"])
             await GitHubClient.get_instance().close_issue(self.github_issue)
 
         if pend:
@@ -311,9 +313,12 @@ class Report:
         pending.append(self.report_id)
         db.jset("pending-reports", pending)
 
-    async def update_labels(self):
+    def get_labels(self):
         labels = [TYPE_LABELS.get(self.report_id[:3]), PRIORITY_LABELS.get(self.severity)]
-        labels = [l for l in labels if l]
+        return [l for l in labels if l]
+
+    async def update_labels(self):
+        labels = self.get_labels()
         await GitHubClient.get_instance().label_issue(self.github_issue, labels)
 
     async def edit_title(self, new_title):
