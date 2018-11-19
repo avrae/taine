@@ -6,8 +6,8 @@ from aiohttp import web
 from lib.github import GitHubClient
 from lib.reports import Report, ReportException
 
-
 PRI_LABEL_NAMES = ("P0", "P1", "P2", "P3", "P4", "P5")
+
 
 class Web:
     # this is probably a really hacky way to run a webhook handler, but eh
@@ -47,7 +47,11 @@ class Web:
             except ReportException:  # report not found
                 return  # oh well
 
-            await report.resolve(ContextProxy(self.bot), None, False, pend=True)
+            pend = True
+            if data['sender']['login'] == 'stale':
+                pend = False
+
+            await report.resolve(ContextProxy(self.bot), None, False, pend=pend)
             report.commit()
         elif action in ("opened", "reopened"):
             # is the issue new?
