@@ -48,7 +48,7 @@ class Web:
                 return  # oh well
 
             pend = True
-            if data['sender']['login'] == 'stale':
+            if data['sender']['login'] == 'stale[bot]':
                 pend = False
 
             await report.resolve(ContextProxy(self.bot), None, False, pend=pend)
