@@ -287,7 +287,7 @@ class Report:
 
         if close_github_issue and self.github_issue:
             if msg.startswith('dupe'):
-                GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + ["duplicate"])
+                await GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + ["duplicate"])
             await GitHubClient.get_instance().close_issue(self.github_issue)
 
         if pend:
