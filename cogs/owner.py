@@ -65,6 +65,7 @@ class Owner:
         if report.github_issue:
             await report.edit_title(f"{report.report_id} {report.title}")
         report.commit()
+        await report.update(ctx)
         await self.bot.say(f"Renamed {report.report_id} as {report.title}.")
 
     @commands.command(pass_context=True, aliases=['pri'])
@@ -105,7 +106,7 @@ class Owner:
         else:
             await self.bot.say(f"Marked {len(reports)} reports as patch pending. {not_found} reports were not found.")
 
-    @commands.command(pass_context=True)
+    @commands.command(pass_context=True, aliases=['release'])
     async def update(self, ctx, build_id: int, *, msg=""):
         """Owner only - To be run after an update. Resolves all -P2 reports."""
         if not ctx.message.author.id == constants.OWNER_ID:
