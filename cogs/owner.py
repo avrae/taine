@@ -31,7 +31,7 @@ class Owner:
         report.commit()
         await self.bot.say(f"Unresolved `{report.report_id}`: {report.title}.")
 
-    @commands.command(pass_context=True)
+    @commands.command(pass_context=True, aliases=['reassign'])
     async def reidentify(self, ctx, report_id, identifier):
         """Owner only - Changes the identifier of a report."""
         if not ctx.message.author.id == constants.OWNER_ID:
@@ -50,9 +50,22 @@ class Owner:
         new_report.message = msg.id
         if new_report.github_issue:
             await new_report.update_labels()
-            await new_report.edit_title(f"`{new_report.report_id}` {new_report.title}")
+            await new_report.edit_title(f"{new_report.report_id} {new_report.title}")
         new_report.commit()
         await self.bot.say(f"Reassigned {report.report_id} as {new_report.report_id}.")
+
+    @commands.command(pass_context=True)
+    async def rename(self, ctx, report_id, name):
+        """Owner only - Changes the title of a report."""
+        if not ctx.message.author.id == constants.OWNER_ID:
+            return
+
+        report = Report.from_id(report_id)
+        report.title = name
+        if report.github_issue:
+            await report.edit_title(f"{report.report_id} {report.title}")
+        report.commit()
+        await self.bot.say(f"Renamed {report.report_id} as {report.title}.")
 
     @commands.command(pass_context=True, aliases=['pri'])
     async def priority(self, ctx, _id, pri: int, *, msg=''):
