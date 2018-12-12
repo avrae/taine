@@ -55,7 +55,7 @@ class Owner:
         await self.bot.say(f"Reassigned {report.report_id} as {new_report.report_id}.")
 
     @commands.command(pass_context=True)
-    async def rename(self, ctx, report_id, name):
+    async def rename(self, ctx, report_id, *, name):
         """Owner only - Changes the title of a report."""
         if not ctx.message.author.id == constants.OWNER_ID:
             return
