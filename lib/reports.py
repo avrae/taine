@@ -199,6 +199,8 @@ class Report:
     async def canrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == ctx and a['veri']]:
             raise ReportException("You have already verified this report.")
+        if self.report_id.startswith('AFR'):
+            raise ReportException("You cannot CR a feature request.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -211,6 +213,8 @@ class Report:
     async def upvote(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already upvoted this report.")
+        if self.report_id.startswith('AVR'):
+            raise ReportException("You cannot upvote a bug report.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -223,6 +227,8 @@ class Report:
     async def cannotrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already verified this report.")
+        if self.report_id.startswith('AFR'):
+            raise ReportException("You cannot CNR a feature request.")
         attachment = {
             'author': author,
             'msg': msg,
@@ -235,6 +241,8 @@ class Report:
     async def downvote(self, author, msg, ctx):  # lol Dusk was here
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
             raise ReportException("You have already downvoted this report.")
+        if self.report_id.startswith('AVR'):
+            raise ReportException("You cannot downvote a bug report.")
         attachment = {
             'author': author,
             'msg': msg,

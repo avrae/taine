@@ -79,7 +79,7 @@ class Web:
                 return  # multiple priority labels
 
             label_names = [l['name'] for l in issue['labels']]
-            priority = -1
+            priority = report.severity
             for i, pri in enumerate(PRI_LABEL_NAMES):
                 if any(pri in n for n in label_names):
                     priority = i
