@@ -16,6 +16,10 @@ PRIORITY = {
 PRIORITY_LABELS = {
     0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low", 5: "P5: Trivial"
 }
+VALID_LABELS = (
+    'beta', 'bug', 'data', 'duplicate', 'featurereq', 'help wanted', 'invalid', 'longterm', 'P0: Critical',
+    'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial', 'stale', 'web', 'wontfix'
+)
 TYPE_LABELS = {
     "AVR": "bug", "AFR": "featurereq", "DDB": "bug", "WEB": "web"
 }
@@ -294,8 +298,15 @@ class Report:
                 self.message = None
 
         if close_github_issue and self.github_issue:
+            extra_labels = set()
             if msg.startswith('dupe'):
-                await GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + ["duplicate"])
+                extra_labels.add("duplicate")
+            for label_match in re.finditer(r'\[(.+?)]', msg):
+                label = label_match.group(1)
+                if label in VALID_LABELS:
+                    extra_labels.add(label)
+            if extra_labels:
+                await GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + list(extra_labels))
             await GitHubClient.get_instance().close_issue(self.github_issue)
 
         if pend:
