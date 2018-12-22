@@ -3,6 +3,7 @@ import re
 
 from aiohttp import web
 
+from constants import OWNER_GITHUB
 from lib.github import GitHubClient
 from lib.reports import Report, ReportException
 
@@ -47,9 +48,7 @@ class Web:
             except ReportException:  # report not found
                 return  # oh well
 
-            pend = True
-            if data['sender']['login'] == 'stale[bot]':
-                pend = False
+            pend = data['sender']['login'] == OWNER_GITHUB
 
             await report.resolve(ContextProxy(self.bot), None, False, pend=pend)
             report.commit()
