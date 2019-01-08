@@ -277,7 +277,10 @@ class Report:
             return msg
 
     async def update(self, ctx):
-        await ctx.bot.edit_message(await self.get_message(ctx), embed=self.get_embed())
+        try:
+            await ctx.bot.edit_message(await self.get_message(ctx), embed=self.get_embed())
+        except AttributeError:
+            return
 
     async def resolve(self, ctx, msg='', close_github_issue=True, pend=False, ignore_closed=False):
         if self.severity == -1 and not ignore_closed:
