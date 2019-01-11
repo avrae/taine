@@ -265,6 +265,16 @@ class Report:
         await self.add_attachment(ctx, attachment, add_to_github)
         await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
 
+    def subscribe(self, ctx):
+        """Ensures a user is subscribed to this report."""
+        if ctx.message.author.id not in self.subscribers:
+            self.subscribers.append(ctx.message.author.id)
+
+    def unsubscribe(self, ctx):
+        """Ensures a user is not subscribed to this report."""
+        if ctx.message.author.id in self.subscribers:
+            self.subscribers.remove(ctx.message.author.id)
+
     async def get_message(self, ctx):
         if self.message is None:
             return None

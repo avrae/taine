@@ -150,6 +150,7 @@ async def canrepro(ctx, _id, *, msg=''):
     """Adds reproduction to a report."""
     report = Report.from_id(_id)
     await report.canrepro(ctx.message.author.id, msg, ctx)
+    report.subscribe(ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -160,6 +161,7 @@ async def upvote(ctx, _id, *, msg=''):
     """Adds an upvote to the selected feature request."""
     report = Report.from_id(_id)
     await report.upvote(ctx.message.author.id, msg, ctx)
+    report.subscribe(ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -170,6 +172,7 @@ async def cannotrepro(ctx, _id, *, msg=''):
     """Adds nonreproduction to a report."""
     report = Report.from_id(_id)
     await report.cannotrepro(ctx.message.author.id, msg, ctx)
+    report.subscribe(ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -180,6 +183,7 @@ async def downvote(ctx, _id, *, msg=''):
     """Adds a downvote to the selected feature request."""
     report = Report.from_id(_id)
     await report.downvote(ctx.message.author.id, msg, ctx)
+    report.subscribe(ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -190,6 +194,7 @@ async def note(ctx, _id, *, msg=''):
     """Adds a note to a report."""
     report = Report.from_id(_id)
     await report.addnote(ctx.message.author.id, msg, ctx)
+    report.subscribe(ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -204,6 +209,7 @@ async def attach(ctx, report_id, message_id):
     except StopIteration:
         return await bot.say("I cannot find that message.")
     await report.addnote(msg.author.id, msg.content, ctx)
+    report.subscribe(ctx)
     report.commit()
     await bot.say(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
     await report.update(ctx)
@@ -213,12 +219,11 @@ async def attach(ctx, report_id, message_id):
 async def subscribe(ctx, report_id):
     """Subscribes to a report."""
     report = Report.from_id(report_id)
-    author_id = ctx.message.author.id
-    if author_id in report.subscribers:
-        report.subscribers.remove(author_id)
+    if ctx.message.author.id in report.subscribers:
+        report.unsubscribe(ctx)
         await bot.say(f"OK, unsubscribed from `{report.report_id}` - {report.title}.")
     else:
-        report.subscribers.append(author_id)
+        report.subscribe(ctx)
         await bot.say(f"OK, subscribed to `{report.report_id}` - {report.title}.")
     report.commit()
 
