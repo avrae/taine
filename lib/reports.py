@@ -297,7 +297,10 @@ class Report:
             raise ReportException("This report is already closed.")
 
         self.severity = -1
-        await self.notify_subscribers(ctx, f"Report resolved.")
+        if pend:
+            await self.notify_subscribers(ctx, f"Report resolved - a patch is pending.")
+        else:
+            await self.notify_subscribers(ctx, f"Report closed. Check #github for details.")
         if msg:
             await self.addnote(ctx.message.author.id, f"Resolved - {msg}", ctx)
 
@@ -357,7 +360,7 @@ class Report:
         await GitHubClient.get_instance().rename_issue(self.github_issue, new_title)
 
     async def notify_subscribers(self, ctx, msg):
-        msg = f"`{self.report_id}` {msg}"
+        msg = f"`{self.report_id}` - {self.title}: {msg}"
         for sub in self.subscribers:
             try:
                 member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
