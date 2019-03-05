@@ -182,7 +182,10 @@ class Report:
             # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
             embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
-            embed.set_footer(text=f"~report {self.report_id} for details | Vote by reacting")
+            vote_msg = "Vote by reacting"
+            if not self.github_issue:
+                vote_msg += " | 3 upvotes required to track"
+            embed.set_footer(text=f"~report {self.report_id} for details | {vote_msg}")
         elif self.report_id.startswith("WEB"):
             embed.colour = 0x57235c
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes),

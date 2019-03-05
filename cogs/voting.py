@@ -47,6 +47,10 @@ class Voting:
                     await report.downvote(member.id, '', ContextProxy(self.bot))
             except ReportException as e:
                 await self.bot.send_message(member, str(e))
+        report.commit()
+        if member.id not in report.subscribers:
+            report.subscribers.append(member.id)
+        await report.update(ContextProxy(self.bot))
 
     def get_emoji(self, **data):
         id_ = data['id']

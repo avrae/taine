@@ -10,6 +10,7 @@ from discord.ext.commands import CommandNotFound
 import constants
 from lib.github import GitHubClient
 from lib.jsondb import JSONDB
+from lib.misc import ContextProxy
 from lib.reports import get_next_report_num, Report
 
 
@@ -82,6 +83,8 @@ async def on_message(message):
         report = await Report.new(message.author.id, report_id, title,
                                   [{'author': message.author.id, 'msg': message.content, 'veri': 0}])
         await report.setup_message(bot)
+        if not report_type == 'AFR':
+            await report.post_to_github(ContextProxy(bot))
         report.commit()
         await bot.add_reaction(message, random.choice(REACTIONS))
 
