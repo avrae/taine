@@ -36,6 +36,8 @@ class Voting:
             return
         if not report.report_id.startswith('AFR'):
             return
+        if member.bot:
+            return 
 
         if member.id == '187421759484592128':
             await report.force_accept(ContextProxy(self.bot))
