@@ -180,6 +180,22 @@ async def subscribe(ctx, report_id):
     report.commit()
 
 
+@bot.command(pass_context=True)
+async def unsuball(ctx):
+    """Unsubscribes from all reports."""
+    reports = bot.db.jget("reports", {})
+    num_unsubbed = 0
+
+    for _id, report in reports.items():
+        if ctx.message.author.id in report.get('subscribers', []):
+            report['subscribers'].remove(ctx.message.author.id)
+            num_unsubbed += 1
+            reports[_id] = report
+
+    bot.db.jset("reports", reports)
+    await bot.say(f"OK, unsubscribed from {num_unsubbed} reports.")
+
+
 if __name__ == '__main__':
     if not (TOKEN and GITHUB_TOKEN and GITHUB_REPO):
         print("token or github metadata not set.")
