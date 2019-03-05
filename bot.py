@@ -82,9 +82,9 @@ async def on_message(message):
 
         report = await Report.new(message.author.id, report_id, title,
                                   [{'author': message.author.id, 'msg': message.content, 'veri': 0}])
-        await report.setup_message(bot)
-        if not report_type == 'AFR':
+        if report_type != 'AFR':
             await report.post_to_github(ContextProxy(bot))
+        await report.setup_message(bot)
         report.commit()
         await bot.add_reaction(message, random.choice(REACTIONS))
 
