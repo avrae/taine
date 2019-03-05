@@ -143,17 +143,7 @@ class Report:
         if self.github_issue:
             raise ReportException("Issue is already on GitHub.")
         labels = [l for l in [TYPE_LABELS.get(self.report_id[:3])] if l]
-        author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
-        if author:
-            desc = f"{self.get_github_desc()}\n\n- {author}"
-        else:
-            desc = self.get_github_desc()
-
-        for attachment in self.attachments[1:]:
-            msg = ''
-            for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
-                msg += f"> {line}\n"
-            desc += f"\n\n{msg}"
+        desc = self.get_github_desc(ctx)
 
         issue = await GitHubClient.get_instance().create_issue(f"{self.report_id} {self.title}", desc, labels)
         self.github_issue = issue.number
@@ -224,10 +214,29 @@ class Report:
 
         return embed
 
-    def get_github_desc(self):
+    def get_github_desc(self, ctx):
+        msg = self.title
         if self.attachments:
-            return self.attachments[0]['msg']
-        return self.title
+            msg = self.attachments[0]['msg']
+
+        author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
+        if author:
+            desc = f"{msg}\n\n- {author}"
+        else:
+            desc = msg
+
+        for attachment in self.attachments[1:]:
+            msg = ''
+            for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
+                msg += f"> {line}\n"
+            desc += f"\n\n{msg}"
+
+        if self.report_id.startswith("AFR"):
+            desc += f"\nVotes: +{self.upvotes} / -{self.downvotes}"
+        else:
+            desc += f"\nVerification: {self.verification}"
+
+        return desc
 
     def get_issue_link(self):
         if self.github_issue is None:
@@ -237,8 +246,12 @@ class Report:
     async def add_attachment(self, ctx, attachment, add_to_github=True):
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:
-            msg = self.get_attachment_message(ctx, attachment)
-            await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+            if attachment['msg']:
+                msg = self.get_attachment_message(ctx, attachment)
+                await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+
+            if attachment['veri']:
+                await GitHubClient.get_instance().edit_issue_body(self.github_issue, self.get_github_desc(ctx))
 
     def get_attachment_message(self, ctx, attachment):
         username = str(
@@ -273,7 +286,8 @@ class Report:
         }
         self.upvotes += 1
         await self.add_attachment(ctx, attachment)
-        await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
+        if msg:
+            await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
         if self.is_open() and not self.github_issue and self.upvotes - self.downvotes >= GITHUB_THRESHOLD:
             await self.post_to_github(ctx)
 
@@ -303,7 +317,8 @@ class Report:
         }
         self.downvotes += 1
         await self.add_attachment(ctx, attachment)
-        await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
+        if msg:
+            await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
 
     async def force_accept(self, ctx):
         await self.post_to_github(ctx)

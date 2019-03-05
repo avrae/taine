@@ -37,7 +37,7 @@ class Voting:
         if not report.report_id.startswith('AFR'):
             return
         if member.bot:
-            return 
+            return
 
         if member.id == '187421759484592128':
             await report.force_accept(ContextProxy(self.bot))
@@ -49,9 +49,9 @@ class Voting:
                     await report.downvote(member.id, '', ContextProxy(self.bot))
             except ReportException as e:
                 await self.bot.send_message(member, str(e))
-        report.commit()
         if member.id not in report.subscribers:
             report.subscribers.append(member.id)
+        report.commit()
         await report.update(ContextProxy(self.bot))
 
     def get_emoji(self, **data):
