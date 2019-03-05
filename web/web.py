@@ -5,6 +5,7 @@ from aiohttp import web
 
 from constants import OWNER_GITHUB
 from lib.github import GitHubClient
+from lib.misc import ContextProxy
 from lib.reports import Report, ReportException
 
 PRI_LABEL_NAMES = ("P0", "P1", "P2", "P3", "P4", "P5")
@@ -124,11 +125,6 @@ class Web:
 
         scheme = 'https' if ssl_context else 'http'
         print("======== Running on {scheme}://{host}:{port}/ ========".format(scheme=scheme, host=host, port=port))
-
-
-class ContextProxy:  # just to pass the bot on to functions that need it
-    def __init__(self, bot):
-        self.bot = bot
 
 
 def setup(bot):

@@ -12,8 +12,14 @@ from lib.github import GitHubClient
 from lib.jsondb import JSONDB
 from lib.reports import get_next_report_num, Report
 
-bot = commands.Bot(command_prefix="~")
-bot.db = JSONDB()
+
+class Taine(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        super(Taine, self).__init__(*args, **kwargs)
+        self.db = JSONDB()
+
+
+bot = Taine(command_prefix="~")
 
 TOKEN = os.environ.get("TOKEN")  # os.environ.get("TOKEN")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
@@ -33,7 +39,7 @@ REACTIONS = [
     "\U0001f916",  # robot
     "\U0001f409",  # dragon
 ]
-EXTENSIONS = ("web.web", "cogs.aliases", "cogs.owner")
+EXTENSIONS = ("web.web", "cogs.aliases", "cogs.owner", "cogs.voting")
 
 
 @bot.event
@@ -74,10 +80,8 @@ async def on_message(message):
         report_id = f"{report_type}-{report_num}"
 
         report = await Report.new(message.author.id, report_id, title,
-                                  [{'author': message.author.id, 'msg': message.content, 'veri': 0}],
-                                  author=message.author)
-        report_message = await bot.send_message(bot.get_channel(constants.TRACKER_CHAN), embed=report.get_embed())
-        report.message = report_message.id
+                                  [{'author': message.author.id, 'msg': message.content, 'veri': 0}])
+        await report.setup_message(bot)
         report.commit()
         await bot.add_reaction(message, random.choice(REACTIONS))
 

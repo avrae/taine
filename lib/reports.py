@@ -3,6 +3,7 @@ import re
 import discord
 from cachetools import LRUCache
 
+import constants
 from lib.github import GitHubClient
 from lib.jsondb import JSONDB
 
@@ -40,13 +41,18 @@ VERI_KEY = {
 
 TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
 GITHUB_BASE = "https://github.com"
+UPVOTE_REACTION = "\U0001f44d"
+DOWNVOTE_REACTION = "\U0001f44e"
+GITHUB_THRESHOLD = 3
 
 
 class Report:
     message_cache = LRUCache(maxsize=100)
+    message_ids = {report.get('message'): id_ for id_, report in db.jget('reports', {}).items() if
+                   report.get('message')}
 
     def __init__(self, reporter: str, report_id: str, title: str, severity: int, verification: int, attachments: list,
-                 message: str, upvotes: int = 0, downvotes: int = 0, github_issue: int = None,
+                 message, upvotes: int = 0, downvotes: int = 0, github_issue: int = None,
                  subscribers: list = None):
         if subscribers is None:
             subscribers = []
@@ -64,18 +70,11 @@ class Report:
 
     @classmethod
     async def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None,
-                  severity: int = 6, verification: int = 0, author=None):
+                  severity: int = 6, verification: int = 0):
         subscribers = None
         if re.match(r"\d+", reporter):
             subscribers = [reporter]
         inst = cls(reporter, report_id, title, severity, verification, attachments, message, subscribers=subscribers)
-        labels = [l for l in [TYPE_LABELS.get(report_id[:3])] if l]
-        if author:
-            desc = f"{inst.get_github_desc()}\n\n- {author}"
-        else:
-            desc = inst.get_github_desc()
-        issue = await GitHubClient.get_instance().create_issue(f"{report_id} {title}", desc, labels)
-        inst.github_issue = issue.number
         return inst
 
     @classmethod
@@ -119,12 +118,53 @@ class Report:
             raise ReportException("Report not found.")
 
     @classmethod
+    def from_message_id(cls, message_id):
+        report_id = Report.message_ids.get(message_id)
+        if report_id:
+            reports = db.jget("reports", {})
+            try:
+                return cls.from_dict(reports[report_id.upper()])
+            except KeyError:
+                raise ReportException("Report not found.")
+        raise ReportException("Report not found.")
+
+    @classmethod
     def from_github(cls, issue_num):
         reports = db.jget("reports", {})
         try:
             return cls.from_dict(next(r for r in reports.values() if r.get('github_issue') == issue_num))
         except StopIteration:
             raise ReportException("Report not found.")
+
+    def is_open(self):
+        return self.severity >= 0
+
+    async def post_to_github(self, ctx):
+        if self.github_issue:
+            raise ReportException("Issue is already on GitHub.")
+        labels = [l for l in [TYPE_LABELS.get(self.report_id[:3])] if l]
+        author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
+        if author:
+            desc = f"{self.get_github_desc()}\n\n- {author}"
+        else:
+            desc = self.get_github_desc()
+
+        for attachment in self.attachments[1:]:
+            msg = ''
+            for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
+                msg += f"> {line}\n"
+            desc += f"\n\n{msg}"
+
+        issue = await GitHubClient.get_instance().create_issue(f"{self.report_id} {self.title}", desc, labels)
+        self.github_issue = issue.number
+
+    async def setup_message(self, bot):
+        report_message = await bot.send_message(bot.get_channel(constants.TRACKER_CHAN), embed=self.get_embed())
+        self.message = report_message.id
+        Report.message_ids[report_message.id] = self.report_id
+        if self.report_id.startswith('AFR'):
+            await bot.add_reaction(report_message, UPVOTE_REACTION)
+            await bot.add_reaction(report_message, DOWNVOTE_REACTION)
 
     def commit(self):
         reports = db.jget("reports", {})
@@ -142,7 +182,7 @@ class Report:
             # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
             embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
-            embed.set_footer(text=f"~report {self.report_id} for details | Vote with ~up/~down {self.report_id} [note]")
+            embed.set_footer(text=f"~report {self.report_id} for details | Vote by reacting")
         elif self.report_id.startswith("WEB"):
             embed.colour = 0x57235c
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes),
@@ -150,7 +190,7 @@ class Report:
             embed.add_field(name="Verification", value=str(self.verification))
             embed.set_footer(text=f"~report {self.report_id} for details | "
                                   f"Verify with ~cr/~cnr {self.report_id} [note], "
-                                  f"or vote with ~up/~down {self.report_id} [note]")
+                                  f"or vote by reacting")
         else:
             if self.report_id.startswith("AVR"):
                 embed.colour = 0xff0000
@@ -194,11 +234,15 @@ class Report:
     async def add_attachment(self, ctx, attachment, add_to_github=True):
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:
-            username = str(
-                next((m for m in ctx.bot.get_all_members() if m.id == attachment['author']), attachment['author']))
-            msg = f"{VERI_KEY.get(attachment['veri'], '')} - {username}\n\n" \
-                  f"{reports_to_issues(attachment['msg'])}"
+            msg = self.get_attachment_message(ctx, attachment)
             await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+
+    def get_attachment_message(self, ctx, attachment):
+        username = str(
+            next((m for m in ctx.bot.get_all_members() if m.id == attachment['author']), attachment['author']))
+        msg = f"{VERI_KEY.get(attachment['veri'], '')} - {username}\n\n" \
+              f"{reports_to_issues(attachment['msg'])}"
+        return msg
 
     async def canrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == ctx and a['veri']]:
@@ -227,6 +271,8 @@ class Report:
         self.upvotes += 1
         await self.add_attachment(ctx, attachment)
         await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
+        if self.is_open() and not self.github_issue and self.upvotes - self.downvotes >= GITHUB_THRESHOLD:
+            await self.post_to_github(ctx)
 
     async def cannotrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
@@ -255,6 +301,9 @@ class Report:
         self.downvotes += 1
         await self.add_attachment(ctx, attachment)
         await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
+
+    async def force_accept(self, ctx):
+        await self.post_to_github(ctx)
 
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = {
@@ -310,6 +359,8 @@ class Report:
                 await ctx.bot.delete_message(msg_)
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
+                if self.message in Report.message_ids:
+                    del Report.message_ids[self.message]
             finally:
                 self.message = None
 
@@ -337,8 +388,7 @@ class Report:
         if msg:
             await self.addnote(ctx.message.author.id, f"Unresolved - {msg}", ctx)
 
-        msg_ = await ctx.bot.send_message(ctx.bot.get_channel(TRACKER_CHAN), embed=self.get_embed())
-        self.message = msg_.id
+        await self.setup_message(ctx.bot)
 
         if open_github_issue and self.github_issue:
             await GitHubClient.get_instance().open_issue(self.github_issue)
