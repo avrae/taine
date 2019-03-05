@@ -225,7 +225,9 @@ class Report:
         else:
             desc = msg
 
-        for attachment in self.attachments[1:]:
+        for i, attachment in enumerate(self.attachments[1:]):
+            if attachment['msg'] and i > 2:
+                continue
             msg = ''
             for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
                 msg += f"> {line}\n"
