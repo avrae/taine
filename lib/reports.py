@@ -1,4 +1,5 @@
 import re
+from math import ceil
 
 import discord
 from cachetools import LRUCache
@@ -225,17 +226,25 @@ class Report:
         else:
             desc = msg
 
-        for i, attachment in enumerate(self.attachments[1:]):
-            if attachment['msg'] and i > 2:
-                continue
-            msg = ''
-            for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
-                msg += f"> {line}\n"
-            desc += f"\n\n{msg}"
-
         if self.report_id.startswith("AFR"):
+            i = 0
+            for attachment in self.attachments[1:]:
+                if attachment['msg'] and i >= GITHUB_THRESHOLD:
+                    continue
+                i += attachment['veri'] // 2
+                msg = ''
+                for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
+                    msg += f"> {line}\n"
+                desc += f"\n\n{msg}"
             desc += f"\nVotes: +{self.upvotes} / -{self.downvotes}"
         else:
+            for attachment in self.attachments[1:]:
+                if attachment['msg']:
+                    continue
+                msg = ''
+                for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
+                    msg += f"> {line}\n"
+                desc += f"\n\n{msg}"
             desc += f"\nVerification: {self.verification}"
 
         return desc
