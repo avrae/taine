@@ -175,7 +175,7 @@ class Report:
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
             vote_msg = "Vote by reacting"
             if not self.github_issue:
-                vote_msg += " | 3 upvotes required to track"
+                vote_msg += f" | {GITHUB_THRESHOLD} upvotes required to track"
             embed.set_footer(text=f"~report {self.report_id} for details | {vote_msg}")
         elif self.report_id.startswith("WEB"):
             embed.colour = 0x57235c
