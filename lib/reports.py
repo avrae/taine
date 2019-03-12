@@ -20,7 +20,8 @@ PRIORITY_LABELS = {
 }
 VALID_LABELS = (
     'beta', 'bug', 'data', 'duplicate', 'featurereq', 'help wanted', 'invalid', 'longterm', 'P0: Critical',
-    'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial', 'stale', 'web', 'wontfix'
+    'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial', 'stale', 'web', 'wontfix',
+    '+10', '+15'
 )
 TYPE_LABELS = {
     "AVR": "bug", "AFR": "featurereq", "DDB": "bug", "WEB": "web"
@@ -301,6 +302,8 @@ class Report:
             await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
         if self.is_open() and not self.github_issue and self.upvotes - self.downvotes >= GITHUB_THRESHOLD:
             await self.post_to_github(ctx)
+        if self.upvotes - self.downvotes in (15, 10):
+            await self.update_labels()
 
     async def cannotrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a['author'] == author and a['veri']]:
@@ -330,6 +333,8 @@ class Report:
         await self.add_attachment(ctx, attachment)
         if msg:
             await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
+        if self.upvotes - self.downvotes in (14, 9):
+            await self.update_labels()
 
     async def force_accept(self, ctx):
         await self.post_to_github(ctx)
@@ -429,6 +434,10 @@ class Report:
 
     def get_labels(self):
         labels = [TYPE_LABELS.get(self.report_id[:3]), PRIORITY_LABELS.get(self.severity)]
+        if self.report_id.startswith('AFR') and self.upvotes - self.downvotes > 14:
+            labels.append('+15')
+        elif self.report_id.startswith('AFR') and self.upvotes - self.downvotes > 9:
+            labels.append('+10')
         return [l for l in labels if l]
 
     async def update_labels(self):
