@@ -339,6 +339,9 @@ class Report:
     async def force_accept(self, ctx):
         await self.post_to_github(ctx)
 
+    async def force_deny(self, ctx):
+        await self.resolve(ctx, "This feature request was denied.")
+
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = {
             'author': author,
