@@ -40,9 +40,9 @@ class Voting:
             return
 
         if member.id == '187421759484592128':
-            if emoji == UPVOTE_REACTION:
+            if str(emoji) == UPVOTE_REACTION:
                 await report.force_accept(ContextProxy(self.bot))
-            elif emoji == DOWNVOTE_REACTION:
+            else:
                 print(f"Force denying {report.title}")
                 await report.force_deny(ContextProxy(self.bot))
         else:
