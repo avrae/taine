@@ -43,6 +43,7 @@ class Voting:
             if emoji == UPVOTE_REACTION:
                 await report.force_accept(ContextProxy(self.bot))
             elif emoji == DOWNVOTE_REACTION:
+                print(f"Force denying {report.title}")
                 await report.force_deny(ContextProxy(self.bot))
         else:
             try:

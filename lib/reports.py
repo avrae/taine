@@ -386,7 +386,7 @@ class Report:
         if pend:
             await self.notify_subscribers(ctx, f"Report resolved - a patch is pending.")
         else:
-            await self.notify_subscribers(ctx, f"Report closed. Check #github for details.")
+            await self.notify_subscribers(ctx, f"Report closed.")
         if msg:
             await self.addnote(ctx.message.author.id, f"Resolved - {msg}", ctx)
 
