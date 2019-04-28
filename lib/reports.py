@@ -184,8 +184,8 @@ class Report:
                             inline=True)
             embed.add_field(name="Verification", value=str(self.verification))
             embed.set_footer(text=f"~report {self.report_id} for details | "
-                                  f"Verify with ~cr/~cnr {self.report_id} [note], "
-                                  f"or vote by reacting")
+            f"Verify with ~cr/~cnr {self.report_id} [note], "
+            f"or vote by reacting")
         else:
             if self.report_id.startswith("AVR"):
                 embed.colour = 0xff0000
@@ -193,7 +193,7 @@ class Report:
                 embed.colour = 0xe30910
             embed.add_field(name="Verification", value=str(self.verification))
             embed.set_footer(text=f"~report {self.report_id} for details | "
-                                  f"Verify with ~cr/~cnr {self.report_id} [note]")
+            f"Verify with ~cr/~cnr {self.report_id} [note]")
 
         embed.title = f"`{self.report_id}` {self.title}"
         if len(embed.title) > 256:
@@ -269,7 +269,7 @@ class Report:
         username = str(
             next((m for m in ctx.bot.get_all_members() if m.id == attachment['author']), attachment['author']))
         msg = f"{VERI_KEY.get(attachment['veri'], '')} - {username}\n\n" \
-              f"{reports_to_issues(attachment['msg'])}"
+            f"{reports_to_issues(attachment['msg'])}"
         return msg
 
     async def canrepro(self, author, msg, ctx):
@@ -340,7 +340,23 @@ class Report:
         await self.post_to_github(ctx)
 
     async def force_deny(self, ctx):
-        await self.resolve(ctx, "This feature request was denied.")
+        self.severity = -1
+        await self.notify_subscribers(ctx, f"Report closed.")
+        await self.addnote(constants.OWNER_ID, f"Resolved - This report was denied.", ctx)
+
+        msg_ = await self.get_message(ctx)
+        if msg_:
+            try:
+                await ctx.bot.delete_message(msg_)
+                if self.message in Report.message_cache:
+                    del Report.message_cache[self.message]
+                if self.message in Report.message_ids:
+                    del Report.message_ids[self.message]
+            finally:
+                self.message = None
+
+        if self.github_issue:
+            await GitHubClient.get_instance().close_issue(self.github_issue)
 
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = {
