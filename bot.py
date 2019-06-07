@@ -64,7 +64,7 @@ async def on_message(message):
     report_type = None
     match = None
     if message.channel.id == constants.BUG_CHAN:  # bug-reports
-        match = re.match(r"\**What[ 'i]+s the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
+        match = re.match(r"\**What[ 'i]{1,2}s the [Bb]ug\?\**:? ?(.+?)(\n|$)", message.content)
         report_type = 'AVR'
     elif message.channel.id == constants.FEATURE_CHAN:  # feature-request
         match = re.match(r"\**Feature [Rr]equest\**:?\s?(.+?)(\n|$)", message.content)
