@@ -41,7 +41,7 @@ VERI_KEY = {
     2: "Upvote"
 }
 
-TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
+TRACKER_CHAN = 360855116057673729  # AVRAE DEV "360855116057673729"
 GITHUB_BASE = "https://github.com"
 UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
@@ -62,13 +62,20 @@ class Report:
         self.report_id = report_id
         self.title = title
         self.severity = severity
-        self.verification = verification
+
+        self.attachments = attachments
+        self.message: int = message
+        self.subscribers = subscribers
+
+        # TODO
+        # self.repo: str = repo
+        self.github_issue = github_issue
+
+        # self.is_bug = False
         self.upvotes = upvotes
         self.downvotes = downvotes
-        self.attachments = attachments
-        self.message = message
-        self.github_issue = github_issue
-        self.subscribers = subscribers
+
+        self.verification = verification
 
     @classmethod
     async def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None,
@@ -87,7 +94,7 @@ class Report:
             "veri": 0
         }]
         title = issue['title']
-        id_match = re.match(r'([A-Z]{3})(-\d+)?\s', issue['title'])
+        id_match = re.match(r'([A-Z]{3,})(-\d+)?\s', issue['title'])
         if id_match:
             identifier = id_match.group(1)
             report_num = get_next_report_num(identifier)
@@ -151,12 +158,12 @@ class Report:
         self.github_issue = issue.number
 
     async def setup_message(self, bot):
-        report_message = await bot.send_message(bot.get_channel(constants.TRACKER_CHAN), embed=self.get_embed())
+        report_message = await bot.get_channel(constants.TRACKER_CHAN).send(embed=self.get_embed())
         self.message = report_message.id
         Report.message_ids[report_message.id] = self.report_id
         if self.report_id.startswith('AFR'):
-            await bot.add_reaction(report_message, UPVOTE_REACTION)
-            await bot.add_reaction(report_message, DOWNVOTE_REACTION)
+            await report_message.add_reaction(UPVOTE_REACTION)
+            await report_message.add_reaction(DOWNVOTE_REACTION)
 
     def commit(self):
         reports = db.jget("reports", {})
@@ -183,17 +190,17 @@ class Report:
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes),
                             inline=True)
             embed.add_field(name="Verification", value=str(self.verification))
-            embed.set_footer(text=f"~report {self.report_id} for details | "
-            f"Verify with ~cr/~cnr {self.report_id} [note], "
-            f"or vote by reacting")
+            embed.set_footer(
+                text=f"~report {self.report_id} for details | "
+                f"Verify with ~cr/~cnr {self.report_id} [note], or vote by reacting")
         else:
             if self.report_id.startswith("AVR"):
                 embed.colour = 0xff0000
             elif self.report_id.startswith("DDB"):
                 embed.colour = 0xe30910
             embed.add_field(name="Verification", value=str(self.verification))
-            embed.set_footer(text=f"~report {self.report_id} for details | "
-            f"Verify with ~cr/~cnr {self.report_id} [note]")
+            embed.set_footer(
+                text=f"~report {self.report_id} for details |  Verify with ~cr/~cnr {self.report_id} [note]")
 
         embed.title = f"`{self.report_id}` {self.title}"
         if len(embed.title) > 256:
@@ -206,8 +213,8 @@ class Report:
                 raise ValueError("Context not supplied for detailed call.")
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
-                if re.match(r"\d+", attachment['author']):
-                    user = ctx.message.server.get_member(attachment['author'])
+                if isinstance(attachment['author'], int):
+                    user = ctx.guild.get_member(attachment['author'])
                 else:
                     user = attachment['author']
                 msg = attachment['msg'][:1020] or "No details."
@@ -347,7 +354,7 @@ class Report:
         msg_ = await self.get_message(ctx)
         if msg_:
             try:
-                await ctx.bot.delete_message(msg_)
+                await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
                 if self.message in Report.message_ids:
@@ -383,14 +390,15 @@ class Report:
         elif self.message in self.message_cache:
             return self.message_cache[self.message]
         else:
-            msg = await ctx.bot.get_message(ctx.bot.get_channel(TRACKER_CHAN), self.message)
+            msg = await ctx.bot.get_channel(TRACKER_CHAN).fetch_message(self.message)
             if msg:
                 Report.message_cache[self.message] = msg
             return msg
 
     async def update(self, ctx):
         try:
-            await ctx.bot.edit_message(await self.get_message(ctx), embed=self.get_embed())
+            msg = await self.get_message(ctx)
+            await msg.edit(embed=self.get_embed())
         except AttributeError:
             return
 
@@ -409,7 +417,7 @@ class Report:
         msg_ = await self.get_message(ctx)
         if msg_:
             try:
-                await ctx.bot.delete_message(msg_)
+                await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
                 if self.message in Report.message_ids:
@@ -471,7 +479,7 @@ class Report:
         for sub in self.subscribers:
             try:
                 member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
-                await ctx.bot.send_message(member, msg)
+                await member.send(msg)
             except:
                 continue
 

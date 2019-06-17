@@ -2,6 +2,7 @@ import asyncio
 import re
 
 from aiohttp import web
+from discord.ext import commands
 
 from constants import OWNER_GITHUB
 from lib.github import GitHubClient
@@ -11,7 +12,7 @@ from lib.reports import Report, ReportException
 PRI_LABEL_NAMES = ("P0", "P1", "P2", "P3", "P4", "P5")
 
 
-class Web:
+class Web(commands.Cog):
     # this is probably a really hacky way to run a webhook handler, but eh
     def __init__(self, bot):
         self.bot = bot
