@@ -39,7 +39,7 @@ REACTIONS = [
     "\U0001f916",  # robot
     "\U0001f409",  # dragon
 ]
-EXTENSIONS = ("web.web", "cogs.owner", "cogs.voting", "cogs.repl")
+EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl")
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s?(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s?(.+?)(\n|$)")
 

@@ -1,11 +1,16 @@
+import discord
 from discord.ext import commands
 
 import constants
 from lib.misc import ContextProxy
 from lib.reports import DOWNVOTE_REACTION, Report, ReportException, UPVOTE_REACTION
 
+BUG_HUNTER_MSG_ID = 590642451266535461
+BUG_HUNTER_REACTION_ID = 454031039375867925
+BUG_HUNTER_ROLE_ID = 469137394742853642
 
-class Voting(commands.Cog):
+
+class Reactions(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -22,6 +27,9 @@ class Voting(commands.Cog):
         await self.handle_reaction(msg_id, member, emoji)
 
     async def handle_reaction(self, msg_id, member, emoji):
+        if msg_id == BUG_HUNTER_MSG_ID and emoji.id == BUG_HUNTER_REACTION_ID:
+            return await self.handle_bug_hunter(member)
+
         if emoji.name not in (UPVOTE_REACTION, DOWNVOTE_REACTION):
             return
 
@@ -56,6 +64,13 @@ class Voting(commands.Cog):
         report.commit()
         await report.update(ContextProxy(self.bot))
 
+    async def handle_bug_hunter(self, member):
+        role = discord.utils.get(member.guild.roles, id=BUG_HUNTER_ROLE_ID)
+        if role in member.roles:
+            await member.remove_roles(role)
+        else:
+            await member.add_roles(role)
+
 
 def setup(bot):
-    bot.add_cog(Voting(bot))
+    bot.add_cog(Reactions(bot))
