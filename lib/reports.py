@@ -43,6 +43,8 @@ UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
 GITHUB_THRESHOLD = 5
 
+gh = GitHubClient.get_instance()
+
 
 class Attachment:
     def __init__(self, author, message, veri: int = 0):
@@ -163,7 +165,7 @@ class Report:
             labels = ["featurereq"]
         desc = self.get_github_desc(ctx)
 
-        issue = await GitHubClient.get_instance().create_issue(f"{self.report_id} {self.title}", desc, labels)
+        issue = await gh.create_issue(f"{self.report_id} {self.title}", desc, labels)
         self.github_issue = issue.number
 
     async def setup_message(self, bot):
@@ -276,12 +278,12 @@ class Report:
         if add_to_github and self.github_issue:
             if attachment.message:
                 msg = self.get_attachment_message(ctx, attachment)
-                await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+                await gh.add_issue_comment(self.github_issue, msg)
 
             if attachment.veri:
-                await GitHubClient.get_instance().edit_issue_body(self.github_issue, self.get_github_desc(ctx))
+                await gh.edit_issue_body(self.github_issue, self.get_github_desc(ctx))
 
-    def get_attachment_message(self, ctx, attachment:Attachment):
+    def get_attachment_message(self, ctx, attachment: Attachment):
         if isinstance(attachment.author, int):
             username = str(next((m for m in ctx.bot.get_all_members() if m.id == attachment.author), attachment.author))
         else:
@@ -374,7 +376,7 @@ class Report:
                 self.message = None
 
         if self.github_issue:  # todo
-            await GitHubClient.get_instance().close_issue(self.github_issue)
+            await gh.close_issue(self.github_issue)
 
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = {
@@ -445,8 +447,8 @@ class Report:
                 if label in VALID_LABELS:
                     extra_labels.add(label)
             if extra_labels:  # todo
-                await GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + list(extra_labels))
-            await GitHubClient.get_instance().close_issue(self.github_issue)
+                await gh.label_issue(self.github_issue, self.get_labels() + list(extra_labels))
+            await gh.close_issue(self.github_issue)
 
         if pend:
             self.pend()
@@ -463,7 +465,7 @@ class Report:
         await self.setup_message(ctx.bot)
 
         if open_github_issue and self.github_issue:  # todo
-            await GitHubClient.get_instance().open_issue(self.github_issue)
+            await gh.open_issue(self.github_issue)
 
     def pend(self):
         pending = db.jget("pending-reports", [])
@@ -484,10 +486,10 @@ class Report:
 
     async def update_labels(self):  # todo
         labels = self.get_labels()
-        await GitHubClient.get_instance().label_issue(self.github_issue, labels)
+        await gh.label_issue(self.github_issue, labels)
 
     async def edit_title(self, new_title):
-        await GitHubClient.get_instance().rename_issue(self.github_issue, new_title)
+        await gh.rename_issue(self.github_issue, new_title)
 
     async def notify_subscribers(self, ctx, msg):
         msg = f"`{self.report_id}` - {self.title}: {msg}"
