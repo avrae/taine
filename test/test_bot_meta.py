@@ -1,14 +1,14 @@
-from bot import GITHUB_REPO, bot
-from cogs.aliases import ALIAS_REPO
-from constants import OWNER_ID, BUG_CHAN, DDB_CHAN, FEATURE_CHAN, TRACKER_CHAN
+from bot import bot
+from constants import API_CHAN, BUG_CHAN, FEATURE_CHAN, OWNER_ID, TAINE_CHAN, TRACKER_CHAN, WEB_CHAN
 
 
 def test_constants():
-    assert GITHUB_REPO == 'avrae/avrae'
-    assert OWNER_ID == "187421759484592128"
-    assert BUG_CHAN == "336792750773239809"
-    assert DDB_CHAN == "463580965810208768"
-    assert FEATURE_CHAN == "297190603819843586"
-    assert TRACKER_CHAN == "360855116057673729"
+    assert OWNER_ID == 187421759484592128
+    assert BUG_CHAN == 336792750773239809
+    assert FEATURE_CHAN == 297190603819843586
+    assert WEB_CHAN == 487486995527106580
+    assert API_CHAN == 590611030611197962
+    assert TAINE_CHAN == 590611115734728704
+
+    assert TRACKER_CHAN == 360855116057673729
     assert bot.command_prefix == '~'
-    assert ALIAS_REPO == "avrae/avrae-docs"
