@@ -18,7 +18,7 @@ PRIORITY_LABELS = {
     0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low", 5: "P5: Trivial"
 }
 VALID_LABELS = (
-    'bug', 'duplicate', 'featurereq', 'help wanted', 'invalid', 'wontfix', 'longterm',
+    'bug', 'duplicate', 'featurereq', 'help wanted', 'invalid', 'wontfix', 'longterm', 'enhancement',
     'P0: Critical', 'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial', 'stale',
     '+10', '+15'
 )
@@ -35,6 +35,12 @@ VERI_KEY = {
     0: "Note",
     1: "Can Reproduce",
     2: "Upvote"
+}
+REPO_ID_MAP = {
+    "avrae/avrae": "AVR",
+    "avrae/avrae.io": "WEB",
+    "avrae/avrae-service": "API",
+    "avrae/taine": "TNE"
 }
 
 TRACKER_CHAN = 360855116057673729  # AVRAE DEV "360855116057673729"
@@ -114,7 +120,7 @@ class Report:
         return inst
 
     @classmethod
-    def from_issue(cls, issue):
+    def new_from_issue(cls, repo_name, issue):
         attachments = [Attachment(issue['body'], "GitHub")]
         title = issue['title']
         id_match = re.match(r'([A-Z]{3,})(-\d+)?\s', issue['title'])
@@ -124,10 +130,14 @@ class Report:
             report_id = f"{identifier}-{report_num}"
             title = title[len(id_match.group(0)):]
         else:
-            report_id = f"AVR-{get_next_report_num('AVR')}"
+            identifier = identifier_from_repo(repo_name)
+            report_id = f"{identifier}-{get_next_report_num(identifier)}"
+
+        is_bug = 'featurereq' not in [lab['name'] for lab in issue['labels']]
+
         return cls("GitHub", report_id, title, 6,
                    # pri is created at -1 for unresolve
-                   0, attachments, None, github_issue=issue['number'])
+                   0, attachments, None, github_issue=issue['number'], github_repo=repo_name, is_bug=is_bug)
 
     @classmethod
     def from_dict(cls, report_dict):
@@ -163,17 +173,19 @@ class Report:
         raise ReportException("Report not found.")
 
     @classmethod
-    def from_github(cls, issue_num):
+    def from_github(cls, repo_name, issue_num):
         reports = db.jget("reports", {})
         try:
-            return cls.from_dict(next(r for r in reports.values() if r.get('github_issue') == issue_num))
+            return cls.from_dict(
+                next(r for r in reports.values() if
+                     r.get('github_issue') == issue_num and r.get('github_repo') == repo_name))
         except StopIteration:
             raise ReportException("Report not found.")
 
     def is_open(self):
         return self.severity >= 0
 
-    async def post_to_github(self, ctx):  # todo
+    async def post_to_github(self, ctx):
         if self.github_issue:
             raise ReportException("Issue is already on GitHub.")
         if self.is_bug:
@@ -182,7 +194,8 @@ class Report:
             labels = ["featurereq"]
         desc = self.get_github_desc(ctx)
 
-        issue = await GitHubClient.get_instance().create_issue(f"{self.report_id} {self.title}", desc, labels)
+        issue = await GitHubClient.get_instance().create_issue(self.repo, f"{self.report_id} {self.title}", desc,
+                                                               labels)
         self.github_issue = issue.number
 
     async def setup_message(self, bot):
@@ -205,30 +218,18 @@ class Report:
         else:
             embed.add_field(name="Added By", value=self.reporter)
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
-        if self.report_id.startswith("AFR"):
-            # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
+        if not self.is_bug:
             embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
             vote_msg = "Vote by reacting"
             if not self.github_issue:
                 vote_msg += f" | {GITHUB_THRESHOLD} upvotes required to track"
             embed.set_footer(text=f"~report {self.report_id} for details | {vote_msg}")
-        elif self.report_id.startswith("WEB"):
-            embed.colour = 0x57235c
-            embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes),
-                            inline=True)
-            embed.add_field(name="Verification", value=str(self.verification))
-            embed.set_footer(
-                text=f"~report {self.report_id} for details | "
-                f"Verify with ~cr/~cnr {self.report_id} [note], or vote by reacting")
         else:
-            if self.report_id.startswith("AVR"):
-                embed.colour = 0xff0000
-            elif self.report_id.startswith("DDB"):
-                embed.colour = 0xe30910
+            embed.colour = 0xff0000
             embed.add_field(name="Verification", value=str(self.verification))
             embed.set_footer(
-                text=f"~report {self.report_id} for details |  Verify with ~cr/~cnr {self.report_id} [note]")
+                text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note]")
 
         embed.title = f"`{self.report_id}` {self.title}"
         if len(embed.title) > 256:
@@ -290,15 +291,16 @@ class Report:
             return None
         return f"https://github.com/{self.repo}/issues/{self.github_issue}"
 
-    async def add_attachment(self, ctx, attachment: Attachment, add_to_github=True):  # todo
+    async def add_attachment(self, ctx, attachment: Attachment, add_to_github=True):
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:
             if attachment.message:
                 msg = self.get_attachment_message(ctx, attachment)
-                await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+                await GitHubClient.get_instance().add_issue_comment(self.repo, self.github_issue, msg)
 
             if attachment.veri:
-                await GitHubClient.get_instance().edit_issue_body(self.github_issue, self.get_github_desc(ctx))
+                await GitHubClient.get_instance().edit_issue_body(self.repo, self.github_issue,
+                                                                  self.get_github_desc(ctx))
 
     def get_attachment_message(self, ctx, attachment: Attachment):
         if isinstance(attachment.author, int):
@@ -381,8 +383,8 @@ class Report:
             finally:
                 self.message = None
 
-        if self.github_issue:  # todo
-            await GitHubClient.get_instance().close_issue(self.github_issue)
+        if self.github_issue:
+            await GitHubClient.get_instance().close_issue(self.repo, self.github_issue)
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
@@ -443,9 +445,10 @@ class Report:
                 label = label_match.group(1)
                 if label in VALID_LABELS:
                     extra_labels.add(label)
-            if extra_labels:  # todo
-                await GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + list(extra_labels))
-            await GitHubClient.get_instance().close_issue(self.github_issue)
+            if extra_labels:
+                await GitHubClient.get_instance().label_issue(self.repo, self.github_issue,
+                                                              self.get_labels() + list(extra_labels))
+            await GitHubClient.get_instance().close_issue(self.repo, self.github_issue)
 
         if pend:
             self.pend()
@@ -461,8 +464,8 @@ class Report:
 
         await self.setup_message(ctx.bot)
 
-        if open_github_issue and self.github_issue:  # todo
-            await GitHubClient.get_instance().open_issue(self.github_issue)
+        if open_github_issue and self.github_issue:
+            await GitHubClient.get_instance().open_issue(self.repo, self.github_issue)
 
     def pend(self):
         pending = db.jget("pending-reports", [])
@@ -481,13 +484,13 @@ class Report:
                 labels.append('+10')
         return [l for l in labels if l]
 
-    async def update_labels(self):  # todo
+    async def update_labels(self):
         labels = self.get_labels()
-        await GitHubClient.get_instance().label_issue(self.github_issue, labels)
+        await GitHubClient.get_instance().label_issue(self.repo, self.github_issue, labels)
 
-    async def edit_title(self, new_title):  # todo
+    async def edit_title(self, new_title):
         self.title = new_title
-        await GitHubClient.get_instance().rename_issue(self.github_issue, new_title)
+        await GitHubClient.get_instance().rename_issue(self.repo, self.github_issue, new_title)
 
     async def notify_subscribers(self, ctx, msg):
         msg = f"`{self.report_id}` - {self.title}: {msg}"
@@ -524,6 +527,10 @@ def reports_to_issues(text):
         return report_id
 
     return re.sub(r"(\w{3,}-\d{3,})", report_sub, text)
+
+
+def identifier_from_repo(repo_name):
+    return REPO_ID_MAP.get(repo_name, 'AVR')
 
 
 class ReportException(Exception):

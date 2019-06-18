@@ -1,6 +1,7 @@
 import asyncio
 
 from github import Github
+from github.Repository import Repository
 
 
 class GitHubClient:
@@ -28,9 +29,14 @@ class GitHubClient:
             raise RuntimeError("Client not initialized")
         return cls._instance
 
+    def get_repo(self, repo, default='avrae/avrae'):
+        return self.repos.get(repo, self.repos.get(default))
+
     async def create_issue(self, repo, title, description, labels=None):
         if labels is None:
             labels = []
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
 
         def _():
             return repo.create_issue(title, description, labels=labels)
@@ -38,6 +44,9 @@ class GitHubClient:
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
     async def add_issue_comment(self, repo, issue_num, description):
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
         def _():
             issue = repo.get_issue(issue_num)
             return issue.create_comment(description)
@@ -45,6 +54,9 @@ class GitHubClient:
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
     async def label_issue(self, repo, issue_num, labels):
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
         def _():
             issue = repo.get_issue(issue_num)
             issue.edit(labels=labels)
@@ -52,6 +64,9 @@ class GitHubClient:
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
     async def close_issue(self, repo, issue_num, comment=None):
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
         def _():
             issue = repo.get_issue(issue_num)
             if comment:
@@ -61,6 +76,9 @@ class GitHubClient:
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
     async def open_issue(self, repo, issue_num, comment=None):
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
         def _():
             issue = repo.get_issue(issue_num)
             if comment:
@@ -70,6 +88,9 @@ class GitHubClient:
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
     async def rename_issue(self, repo, issue_num, new_title):
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
         def _():
             issue = repo.get_issue(issue_num)
             issue.edit(title=new_title)
@@ -77,6 +98,9 @@ class GitHubClient:
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
     async def edit_issue_body(self, repo, issue_num, new_body):
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
         def _():
             issue = repo.get_issue(issue_num)
             issue.edit(body=new_body)
