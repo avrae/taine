@@ -10,8 +10,7 @@ from discord.ext.commands import CommandNotFound
 import constants
 from lib.github import GitHubClient
 from lib.jsondb import JSONDB
-from lib.misc import ContextProxy
-from lib.reports import get_next_report_num, Report
+from lib.reports import Attachment, Report, get_next_report_num
 
 
 class Taine(commands.AutoShardedBot):
@@ -41,6 +40,8 @@ REACTIONS = [
     "\U0001f409",  # dragon
 ]
 EXTENSIONS = ("web.web", "cogs.owner", "cogs.voting", "cogs.repl")
+BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s?(.+?)(\n|$)")
+FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s?(.+?)(\n|$)")
 
 
 @bot.event
@@ -61,26 +62,47 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_message(message):
-    report_type = None
+    identifier = None
+    repo = None
+    is_bug = None
+
+    feature_match = FEATURE_RE.match(message.content)
+    bug_match = BUG_RE.match(message.content)
     match = None
+
+    if feature_match:
+        match = feature_match
+        is_bug = False
+    elif bug_match:
+        match = bug_match
+        is_bug = True
+
     if message.channel.id == constants.BUG_CHAN:  # bug-reports
-        match = re.match(r"\**What is the [Bb]ug\?\**:?\s?(.+?)(\n|$)", message.content)
-        report_type = 'AVR'
+        identifier = 'AVR'
+        repo = 'avrae/avrae'
     elif message.channel.id == constants.FEATURE_CHAN:  # feature-request
-        match = re.match(r"\**Feature [Rr]equest\**:?\s?(.+?)(\n|$)", message.content)
-        report_type = 'AFR'
-    elif message.channel.id == constants.WEB_CHAN:  # web-bug-reports
-        match = re.match(r"\**What is the [Bb]ug\?\**:?\s?(.+?)(\n|$)", message.content)
-        report_type = 'WEB'
-    if match:
-        title = match.group(1).strip(" *")
-        report_num = get_next_report_num(report_type)
-        report_id = f"{report_type}-{report_num}"
+        identifier = 'AFR'
+        repo = 'avrae/avrae'
+    elif message.channel.id == constants.WEB_CHAN:  # web-reports
+        identifier = 'WEB'
+        repo = 'avrae/avrae.io'
+    elif message.channel.id == constants.API_CHAN:  # api-reports
+        identifier = 'API'
+        repo = 'avrae/avrae-service'
+    elif message.channel.id == constants.TAINE_CHAN:  # taine-reports
+        identifier = 'TNE'
+        repo = 'avrae/taine'
+
+    if match and identifier:
+        title = match.group(1).strip(" *.\n")
+        report_num = get_next_report_num(identifier)
+        report_id = f"{identifier}-{report_num}"
 
         report = await Report.new(message.author.id, report_id, title,
-                                  [{'author': message.author.id, 'msg': message.content, 'veri': 0}])
-        if report_type != 'AFR':
-            await report.post_to_github(ContextProxy(bot))
+                                  [Attachment(message.author.id, message.content)], is_bug=is_bug, repo=repo)
+        if not is_bug:
+            await report.post_to_github(await bot.get_context(message))
+
         await report.setup_message(bot)
         report.commit()
         await message.add_reaction(random.choice(REACTIONS))

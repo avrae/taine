@@ -52,23 +52,23 @@ class Web(commands.Cog):
 
             pend = data['sender']['login'] == OWNER_GITHUB
 
-            await report.resolve(ContextProxy(self.bot), None, False, pend=pend)
+            await report.resolve(ContextProxy(self.bot), close_github_issue=False, pend=pend)
             report.commit()
         elif action in ("opened", "reopened"):
             # is the issue new?
             try:
-                report = Report.from_github(issue_num)
+                report = Report.from_github(issue_num)  # todo
             except ReportException:  # report not found
-                report = Report.from_issue(issue)
+                report = Report.from_issue(issue)  # todo
                 if not issue['title'].startswith(report.report_id):
-                    formatted_title = re.sub(r'^([A-Z]{3}(-\d+)?\s)?', f"{report.report_id} ",
+                    formatted_title = re.sub(r'^([A-Z]{3,}(-\d+)?\s)?', f"{report.report_id} ",
                                              issue['title'])
                     await GitHubClient.get_instance().rename_issue(issue['number'], formatted_title)
                 await GitHubClient.get_instance().add_issue_comment(issue['number'],
                                                                     f"Tracked as `{report.report_id}`.")
                 await report.update_labels()
 
-            await report.unresolve(ContextProxy(self.bot), None, False)
+            await report.unresolve(ContextProxy(self.bot), open_github_issue=False)
             report.commit()
         elif action in ("labeled", "unlabeled"):
             try:
@@ -105,7 +105,7 @@ class Web(commands.Cog):
             except ReportException:
                 return  # oh well
 
-            await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), False)
+            await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), add_to_github=False)
             report.commit()
             await report.update(ContextProxy(self.bot))
 

@@ -107,7 +107,7 @@ class Owner(commands.Cog):
             await ctx.send(f"Marked {len(reports)} reports as patch pending. {not_found} reports were not found.")
 
     @commands.command(aliases=['release'])
-    async def update(self, ctx, build_id: int, *, msg=""):
+    async def update(self, ctx, build_id, *, msg=""):
         """Owner only - To be run after an update. Resolves all -P2 reports."""
         if not ctx.message.author.id == constants.OWNER_ID:
             return
@@ -117,7 +117,7 @@ class Owner(commands.Cog):
             await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
             report.commit()
             action = "Fixed"
-            if report.report_id.startswith("AFR"):
+            if not report.is_bug:
                 action = "Added"
             if report.get_issue_link():
                 changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"

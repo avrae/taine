@@ -30,7 +30,7 @@ class Voting(commands.Cog):
         except ReportException:
             return
 
-        if not report.report_id.startswith('AFR'):
+        if report.is_bug:
             return
         if member.bot:
             return

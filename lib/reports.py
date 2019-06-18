@@ -47,7 +47,7 @@ gh = GitHubClient.get_instance()
 
 
 class Attachment:
-    def __init__(self, author, message, veri: int = 0):
+    def __init__(self, author, message: str = '', veri: int = 0):
         self.author = author
         self.message = message
         self.veri = veri
@@ -58,6 +58,22 @@ class Attachment:
 
     def to_dict(self):
         return {"author": self.author, "message": self.message, "veri": self.veri}
+
+    @classmethod
+    def upvote(cls, author, msg=''):
+        return cls(author, msg, 2)
+
+    @classmethod
+    def downvote(cls, author, msg=''):
+        return cls(author, msg, -2)
+
+    @classmethod
+    def cr(cls, author, msg=''):
+        return cls(author, msg, 1)
+
+    @classmethod
+    def cnr(cls, author, msg=''):
+        return cls(author, msg, -1)
 
 
 class Report:
@@ -70,6 +86,8 @@ class Report:
                  subscribers: list = None, is_bug: bool = True):
         if subscribers is None:
             subscribers = []
+        if github_repo is None:
+            github_repo = 'avrae/avrae'
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
@@ -89,11 +107,12 @@ class Report:
         self.verification = verification
 
     @classmethod
-    async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True):
+    async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, repo=None):
         subscribers = None
         if isinstance(reporter, int):
             subscribers = [reporter]
-        inst = cls(reporter, report_id, title, 6, 0, attachments, None, subscribers=subscribers, is_bug=is_bug)
+        inst = cls(reporter, report_id, title, 6, 0, attachments, None, subscribers=subscribers, is_bug=is_bug,
+                   github_repo=repo)
         return inst
 
     @classmethod
@@ -273,7 +292,7 @@ class Report:
             return None
         return f"https://github.com/{self.repo}/issues/{self.github_issue}"
 
-    async def add_attachment(self, ctx, attachment, add_to_github=True):  # todo
+    async def add_attachment(self, ctx, attachment: Attachment, add_to_github=True):  # todo
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:
             if attachment.message:
@@ -295,13 +314,9 @@ class Report:
     async def canrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already verified this report.")
-        if self.report_id.startswith('AFR'):
+        if not self.is_bug:
             raise ReportException("You cannot CR a feature request.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': 1
-        }
+        attachment = Attachment.cr(author, msg)
         self.verification += 1
         await self.add_attachment(ctx, attachment)
         await self.notify_subscribers(ctx, f"New CR by <@{author}>: {msg}")
@@ -309,13 +324,9 @@ class Report:
     async def upvote(self, author, msg, ctx):
         if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already upvoted this report.")
-        if self.report_id.startswith('AVR'):
+        if self.is_bug:
             raise ReportException("You cannot upvote a bug report.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': 2
-        }
+        attachment = Attachment.upvote(author, msg)
         self.upvotes += 1
         await self.add_attachment(ctx, attachment)
         if msg:
@@ -328,13 +339,9 @@ class Report:
     async def cannotrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already verified this report.")
-        if self.report_id.startswith('AFR'):
+        if not self.is_bug:
             raise ReportException("You cannot CNR a feature request.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': -1
-        }
+        attachment = Attachment.cnr(author, msg)
         self.verification -= 1
         await self.add_attachment(ctx, attachment)
         await self.notify_subscribers(ctx, f"New CNR by <@{author}>: {msg}")
@@ -342,19 +349,20 @@ class Report:
     async def downvote(self, author, msg, ctx):  # lol Dusk was here
         if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already downvoted this report.")
-        if self.report_id.startswith('AVR'):
+        if self.is_bug:
             raise ReportException("You cannot downvote a bug report.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': -2
-        }
+        attachment = Attachment.downvote(author, msg)
         self.downvotes += 1
         await self.add_attachment(ctx, attachment)
         if msg:
             await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
         if self.upvotes - self.downvotes in (14, 9):
             await self.update_labels()
+
+    async def addnote(self, author, msg, ctx, add_to_github=True):
+        attachment = Attachment(author, msg)
+        await self.add_attachment(ctx, attachment, add_to_github)
+        await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
 
     async def force_accept(self, ctx):
         await self.post_to_github(ctx)
@@ -377,15 +385,6 @@ class Report:
 
         if self.github_issue:  # todo
             await gh.close_issue(self.github_issue)
-
-    async def addnote(self, author, msg, ctx, add_to_github=True):
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': 0
-        }
-        await self.add_attachment(ctx, attachment, add_to_github)
-        await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
@@ -488,7 +487,8 @@ class Report:
         labels = self.get_labels()
         await gh.label_issue(self.github_issue, labels)
 
-    async def edit_title(self, new_title):
+    async def edit_title(self, new_title):  # todo
+        self.title = new_title
         await gh.rename_issue(self.github_issue, new_title)
 
     async def notify_subscribers(self, ctx, msg):
