@@ -58,7 +58,7 @@ class Reactions(commands.Cog):
                 else:
                     await report.downvote(member.id, '', ContextProxy(self.bot))
             except ReportException as e:
-                await self.bot.send_message(member, str(e))
+                await member.send(str(e))
         if member.id not in report.subscribers:
             report.subscribers.append(member.id)
         report.commit()
