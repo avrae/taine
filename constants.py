@@ -28,6 +28,14 @@ BUG_LISTEN_CHANS = [
     }
 ]
 
+# what to label issues opened on given repos as
+REPO_ID_MAP = {
+    "avrae/avrae": "AVR",
+    "avrae/avrae.io": "WEB",
+    "avrae/avrae-service": "API",
+    "avrae/taine": "TNE"
+}
+
 TRACKER_CHAN = 360855116057673729  # AVRAE DEV "360855116057673729"
 
 OWNER_GITHUB = "mommothazaz123"

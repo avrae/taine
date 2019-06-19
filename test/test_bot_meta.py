@@ -1,5 +1,5 @@
 from bot import bot
-from constants import BUG_LISTEN_CHANS, TRACKER_CHAN
+from constants import BUG_LISTEN_CHANS, REPO_ID_MAP, TRACKER_CHAN
 
 
 def test_constants():
@@ -31,6 +31,13 @@ def test_constants():
             "repo": "avrae/taine"
         }
     ]
+
+    assert REPO_ID_MAP == {
+        "avrae/avrae": "AVR",
+        "avrae/avrae.io": "WEB",
+        "avrae/avrae-service": "API",
+        "avrae/taine": "TNE"
+    }
 
     assert TRACKER_CHAN == 360855116057673729
     assert bot.command_prefix == '~'

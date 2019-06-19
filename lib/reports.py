@@ -36,14 +36,7 @@ VERI_KEY = {
     1: "Can Reproduce",
     2: "Upvote"
 }
-REPO_ID_MAP = {
-    "avrae/avrae": "AVR",
-    "avrae/avrae.io": "WEB",
-    "avrae/avrae-service": "API",
-    "avrae/taine": "TNE"
-}
 
-TRACKER_CHAN = 360855116057673729  # AVRAE DEV "360855116057673729"
 GITHUB_BASE = "https://github.com"
 UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
@@ -402,7 +395,7 @@ class Report:
         elif self.message in self.message_cache:
             return self.message_cache[self.message]
         else:
-            msg = await ctx.bot.get_channel(TRACKER_CHAN).fetch_message(self.message)
+            msg = await ctx.bot.get_channel(constants.TRACKER_CHAN).fetch_message(self.message)
             if msg:
                 Report.message_cache[self.message] = msg
             return msg
@@ -530,7 +523,7 @@ def reports_to_issues(text):
 
 
 def identifier_from_repo(repo_name):
-    return REPO_ID_MAP.get(repo_name, 'AVR')
+    return constants.REPO_ID_MAP.get(repo_name, 'AVR')
 
 
 class ReportException(Exception):
