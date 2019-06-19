@@ -3,8 +3,6 @@ import asyncio
 from github import Github
 from github.Repository import Repository
 
-import constants
-
 
 class GitHubClient:
     _instance = None
@@ -21,11 +19,11 @@ class GitHubClient:
             print(f"Loaded repo {repo.full_name}")
             self.repos[repo.full_name] = repo
 
-        for project in org.get_projects():  # load the bug and feature projects
-            if project.number == constants.BUG_PROJECT_ID:
-                self.bug_project = project
-            if project.number == constants.FEATURE_PROJECT_ID:
-                self.feature_project = project
+        # for project in org.get_projects():  # load the bug and feature projects
+        #     if project.number == constants.BUG_PROJECT_ID:
+        #         self.bug_project = project
+        #     if project.number == constants.FEATURE_PROJECT_ID:
+        #         self.feature_project = project
 
     @classmethod
     def initialize(cls, access_token, org='avrae'):
