@@ -69,8 +69,8 @@ class Web(commands.Cog):
                 report = Report.new_from_issue(repo_name, issue)
                 if not issue['title'].startswith(report.report_id):
                     formatted_title = f"{report.report_id} {report.title}"
-                    await GitHubClient.get_instance().rename_issue(issue['number'], formatted_title)
-                await GitHubClient.get_instance().add_issue_comment(issue['number'],
+                    await GitHubClient.get_instance().rename_issue(repo_name, issue['number'], formatted_title)
+                await GitHubClient.get_instance().add_issue_comment(repo_name, issue['number'],
                                                                     f"Tracked as `{report.report_id}`.")
                 await report.update_labels()
 
