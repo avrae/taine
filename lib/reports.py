@@ -114,7 +114,7 @@ class Report:
 
     @classmethod
     def new_from_issue(cls, repo_name, issue):
-        attachments = [Attachment(issue['body'], "GitHub")]
+        attachments = [Attachment("GitHub", issue['body'])]
         title = issue['title']
         id_match = re.match(r'([A-Z]{3,})(-\d+)?\s', issue['title'])
         if id_match:
@@ -516,6 +516,8 @@ def reports_to_issues(text):
             return report_id
 
         if report.github_issue:
+            if report.repo:
+                return f"{report_id} ({report.repo}#{report.github_issue})"
             return f"{report_id} (#{report.github_issue})"
         return report_id
 

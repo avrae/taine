@@ -75,7 +75,7 @@ async def on_message(message):
 
         report = await Report.new(message.author.id, report_id, title,
                                   [Attachment(message.author.id, message.content)], is_bug=is_bug, repo=repo)
-        if not is_bug:
+        if is_bug:
             await report.setup_github(await bot.get_context(message))
 
         await report.setup_message(bot)
