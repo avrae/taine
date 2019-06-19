@@ -248,7 +248,7 @@ class Report:
     def get_github_desc(self, ctx):
         msg = self.title
         if self.attachments:
-            msg = self.attachments[0]['msg']
+            msg = self.attachments[0].message
 
         author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
         if author:
