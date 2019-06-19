@@ -2,8 +2,8 @@ from lib.reports import Report
 
 
 def test_create():
-    report = Report("1", "AVR-001", "test", 6, 0, [], None)
-    assert report.reporter == "1"
+    report = Report(1, "AVR-001", "test", 6, 0, [], None)
+    assert report.reporter == 1
     assert report.report_id == "AVR-001"
     assert report.title == "test"
     assert report.severity == 6

@@ -1,5 +1,4 @@
 import re
-from math import ceil
 
 import discord
 from cachetools import LRUCache
@@ -19,13 +18,10 @@ PRIORITY_LABELS = {
     0: "P0: Critical", 1: "P1: Very High", 2: "P2: High", 3: "P3: Medium", 4: "P4: Low", 5: "P5: Trivial"
 }
 VALID_LABELS = (
-    'beta', 'bug', 'data', 'duplicate', 'featurereq', 'help wanted', 'invalid', 'longterm', 'P0: Critical',
-    'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial', 'stale', 'web', 'wontfix',
+    'bug', 'duplicate', 'featurereq', 'help wanted', 'invalid', 'wontfix', 'longterm', 'enhancement',
+    'P0: Critical', 'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial', 'stale',
     '+10', '+15'
 )
-TYPE_LABELS = {
-    "AVR": "bug", "AFR": "featurereq", "DDB": "bug", "WEB": "web"
-}
 VERI_EMOJI = {
     -2: "\u2b07",  # DOWNVOTE
     -1: "\u274c",  # CROSS MARK
@@ -41,11 +37,40 @@ VERI_KEY = {
     2: "Upvote"
 }
 
-TRACKER_CHAN = "360855116057673729"  # AVRAE DEV "360855116057673729"
 GITHUB_BASE = "https://github.com"
 UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
 GITHUB_THRESHOLD = 5
+
+
+class Attachment:
+    def __init__(self, author, message: str = '', veri: int = 0):
+        self.author = author
+        self.message = message
+        self.veri = veri
+
+    @classmethod
+    def from_dict(cls, attachment):
+        return cls(**attachment)
+
+    def to_dict(self):
+        return {"author": self.author, "message": self.message, "veri": self.veri}
+
+    @classmethod
+    def upvote(cls, author, msg=''):
+        return cls(author, msg, 2)
+
+    @classmethod
+    def downvote(cls, author, msg=''):
+        return cls(author, msg, -2)
+
+    @classmethod
+    def cr(cls, author, msg=''):
+        return cls(author, msg, 1)
+
+    @classmethod
+    def cnr(cls, author, msg=''):
+        return cls(author, msg, -1)
 
 
 class Report:
@@ -53,62 +78,72 @@ class Report:
     message_ids = {report.get('message'): id_ for id_, report in db.jget('reports', {}).items() if
                    report.get('message')}
 
-    def __init__(self, reporter: str, report_id: str, title: str, severity: int, verification: int, attachments: list,
-                 message, upvotes: int = 0, downvotes: int = 0, github_issue: int = None,
-                 subscribers: list = None):
+    def __init__(self, reporter, report_id: str, title: str, severity: int, verification: int, attachments: list,
+                 message, upvotes: int = 0, downvotes: int = 0, github_issue: int = None, github_repo: str = None,
+                 subscribers: list = None, is_bug: bool = True):
         if subscribers is None:
             subscribers = []
+        if github_repo is None:
+            github_repo = 'avrae/avrae'
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
         self.severity = severity
-        self.verification = verification
-        self.upvotes = upvotes
-        self.downvotes = downvotes
+
         self.attachments = attachments
-        self.message = message
-        self.github_issue = github_issue
+        self.message: int = message
         self.subscribers = subscribers
 
+        self.repo: str = github_repo
+        self.github_issue = github_issue
+
+        self.is_bug = is_bug
+        self.upvotes = upvotes
+        self.downvotes = downvotes
+
+        self.verification = verification
+
     @classmethod
-    async def new(cls, reporter: str, report_id: str, title: str, attachments: list, message: str = None,
-                  severity: int = 6, verification: int = 0):
+    async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, repo=None):
         subscribers = None
-        if re.match(r"\d+", reporter):
+        if isinstance(reporter, int):
             subscribers = [reporter]
-        inst = cls(reporter, report_id, title, severity, verification, attachments, message, subscribers=subscribers)
+        inst = cls(reporter, report_id, title, 6, 0, attachments, None, subscribers=subscribers, is_bug=is_bug,
+                   github_repo=repo)
         return inst
 
     @classmethod
-    def from_issue(cls, issue):
-        attachments = [{
-            "msg": issue['body'],
-            "author": "GitHub",
-            "veri": 0
-        }]
+    def new_from_issue(cls, repo_name, issue):
+        attachments = [Attachment("GitHub", issue['body'])]
         title = issue['title']
-        id_match = re.match(r'([A-Z]{3})(-\d+)?\s', issue['title'])
+        id_match = re.match(r'([A-Z]{3,})(-\d+)?\s', issue['title'])
         if id_match:
             identifier = id_match.group(1)
             report_num = get_next_report_num(identifier)
             report_id = f"{identifier}-{report_num}"
             title = title[len(id_match.group(0)):]
         else:
-            report_id = f"AVR-{get_next_report_num('AVR')}"
+            identifier = identifier_from_repo(repo_name)
+            report_id = f"{identifier}-{get_next_report_num(identifier)}"
+
+        is_bug = 'featurereq' not in [lab['name'] for lab in issue['labels']]
+
         return cls("GitHub", report_id, title, -1,
-                   # pri is created at -1 for unresolve
-                   0, attachments, None, 0, 0, issue['number'])
+                   # pri is created at -1 for unresolve (which changes it to 6)
+                   0, attachments, None, github_issue=issue['number'], github_repo=repo_name, is_bug=is_bug)
 
     @classmethod
     def from_dict(cls, report_dict):
+        report_dict['attachments'] = [Attachment.from_dict(a) for a in report_dict['attachments']]
         return cls(**report_dict)
 
     def to_dict(self):
         return {
             'reporter': self.reporter, 'report_id': self.report_id, 'title': self.title, 'severity': self.severity,
             'verification': self.verification, 'upvotes': self.upvotes, 'downvotes': self.downvotes,
-            'attachments': self.attachments, 'message': self.message, 'github_issue': self.github_issue,
-            'subscribers': self.subscribers
+            'attachments': [a.to_dict() for a in self.attachments], 'message': self.message,
+            'github_issue': self.github_issue, 'github_repo': self.repo, 'subscribers': self.subscribers,
+            'is_bug': self.is_bug
         }
 
     @classmethod
@@ -131,32 +166,40 @@ class Report:
         raise ReportException("Report not found.")
 
     @classmethod
-    def from_github(cls, issue_num):
+    def from_github(cls, repo_name, issue_num):
         reports = db.jget("reports", {})
         try:
-            return cls.from_dict(next(r for r in reports.values() if r.get('github_issue') == issue_num))
+            return cls.from_dict(
+                next(r for r in reports.values() if
+                     r.get('github_issue') == issue_num and r.get('github_repo') == repo_name))
         except StopIteration:
             raise ReportException("Report not found.")
 
     def is_open(self):
         return self.severity >= 0
 
-    async def post_to_github(self, ctx):
+    async def setup_github(self, ctx):
         if self.github_issue:
             raise ReportException("Issue is already on GitHub.")
-        labels = [l for l in [TYPE_LABELS.get(self.report_id[:3])] if l]
+        if self.is_bug:
+            labels = ["bug"]
+        else:
+            labels = ["featurereq"]
         desc = self.get_github_desc(ctx)
 
-        issue = await GitHubClient.get_instance().create_issue(f"{self.report_id} {self.title}", desc, labels)
+        issue = await GitHubClient.get_instance().create_issue(self.repo, f"{self.report_id} {self.title}", desc,
+                                                               labels)
         self.github_issue = issue.number
 
+        # await GitHubClient.get_instance().add_issue_to_project(issue.number, is_bug=self.is_bug)
+
     async def setup_message(self, bot):
-        report_message = await bot.send_message(bot.get_channel(constants.TRACKER_CHAN), embed=self.get_embed())
+        report_message = await bot.get_channel(constants.TRACKER_CHAN).send(embed=self.get_embed())
         self.message = report_message.id
         Report.message_ids[report_message.id] = self.report_id
-        if self.report_id.startswith('AFR'):
-            await bot.add_reaction(report_message, UPVOTE_REACTION)
-            await bot.add_reaction(report_message, DOWNVOTE_REACTION)
+        if not self.is_bug:
+            await report_message.add_reaction(UPVOTE_REACTION)
+            await report_message.add_reaction(DOWNVOTE_REACTION)
 
     def commit(self):
         reports = db.jget("reports", {})
@@ -165,53 +208,41 @@ class Report:
 
     def get_embed(self, detailed=False, ctx=None):
         embed = discord.Embed()
-        if re.match(r"\d+", self.reporter):
+        if isinstance(self.reporter, int):
             embed.add_field(name="Added By", value=f"<@{self.reporter}>")
         else:
             embed.add_field(name="Added By", value=self.reporter)
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
-        if self.report_id.startswith("AFR"):
-            # These statements bought to you by: Dusk-Argentum! Dusk-Argentum: Added Useless Features since 2018!
+        if not self.is_bug:
             embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
             vote_msg = "Vote by reacting"
             if not self.github_issue:
                 vote_msg += f" | {GITHUB_THRESHOLD} upvotes required to track"
             embed.set_footer(text=f"~report {self.report_id} for details | {vote_msg}")
-        elif self.report_id.startswith("WEB"):
-            embed.colour = 0x57235c
-            embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes),
-                            inline=True)
-            embed.add_field(name="Verification", value=str(self.verification))
-            embed.set_footer(text=f"~report {self.report_id} for details | "
-            f"Verify with ~cr/~cnr {self.report_id} [note], "
-            f"or vote by reacting")
         else:
-            if self.report_id.startswith("AVR"):
-                embed.colour = 0xff0000
-            elif self.report_id.startswith("DDB"):
-                embed.colour = 0xe30910
+            embed.colour = 0xff0000
             embed.add_field(name="Verification", value=str(self.verification))
-            embed.set_footer(text=f"~report {self.report_id} for details | "
-            f"Verify with ~cr/~cnr {self.report_id} [note]")
+            embed.set_footer(
+                text=f"~report {self.report_id} for details | Verify with ~cr/~cnr {self.report_id} [note]")
 
         embed.title = f"`{self.report_id}` {self.title}"
         if len(embed.title) > 256:
             embed.title = f"{embed.title[:250]}..."
         if self.github_issue:
-            embed.url = f"{GITHUB_BASE}/{GitHubClient.get_instance().repo_name}/issues/{self.github_issue}"
+            embed.url = f"{GITHUB_BASE}/{self.repo}/issues/{self.github_issue}"
         embed.description = f"*{len(self.attachments)} notes*"
         if detailed:
             if not ctx:
                 raise ValueError("Context not supplied for detailed call.")
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
-                if re.match(r"\d+", attachment['author']):
-                    user = ctx.message.server.get_member(attachment['author'])
+                if isinstance(attachment.author, int):
+                    user = ctx.guild.get_member(attachment.author)
                 else:
-                    user = attachment['author']
-                msg = attachment['msg'][:1020] or "No details."
-                embed.add_field(name=f"{VERI_EMOJI.get(attachment['veri'], '')} {user}",
+                    user = attachment.author
+                msg = attachment.message[:1020] or "No details."
+                embed.add_field(name=f"{VERI_EMOJI.get(attachment.veri, '')} {user}",
                                 value=msg)
 
         return embed
@@ -219,7 +250,7 @@ class Report:
     def get_github_desc(self, ctx):
         msg = self.title
         if self.attachments:
-            msg = self.attachments[0]['msg']
+            msg = self.attachments[0].message
 
         author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
         if author:
@@ -227,12 +258,12 @@ class Report:
         else:
             desc = msg
 
-        if self.report_id.startswith("AFR"):
+        if not self.is_bug:
             i = 0
             for attachment in self.attachments[1:]:
-                if attachment['msg'] and i >= GITHUB_THRESHOLD:
+                if attachment.message and i >= GITHUB_THRESHOLD:
                     continue
-                i += attachment['veri'] // 2
+                i += attachment.veri // 2
                 msg = ''
                 for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
                     msg += f"> {line}\n"
@@ -240,7 +271,7 @@ class Report:
             desc += f"\nVotes: +{self.upvotes} / -{self.downvotes}"
         else:
             for attachment in self.attachments[1:]:
-                if attachment['msg']:
+                if attachment.message:
                     continue
                 msg = ''
                 for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
@@ -253,82 +284,69 @@ class Report:
     def get_issue_link(self):
         if self.github_issue is None:
             return None
-        return f"https://github.com/{GitHubClient.get_instance().repo_name}/issues/{self.github_issue}"
+        return f"https://github.com/{self.repo}/issues/{self.github_issue}"
 
-    async def add_attachment(self, ctx, attachment, add_to_github=True):
+    async def add_attachment(self, ctx, attachment: Attachment, add_to_github=True):
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:
-            if attachment['msg']:
+            if attachment.message:
                 msg = self.get_attachment_message(ctx, attachment)
-                await GitHubClient.get_instance().add_issue_comment(self.github_issue, msg)
+                await GitHubClient.get_instance().add_issue_comment(self.repo, self.github_issue, msg)
 
-            if attachment['veri']:
-                await GitHubClient.get_instance().edit_issue_body(self.github_issue, self.get_github_desc(ctx))
+            if attachment.veri:
+                await GitHubClient.get_instance().edit_issue_body(self.repo, self.github_issue,
+                                                                  self.get_github_desc(ctx))
 
-    def get_attachment_message(self, ctx, attachment):
-        username = str(
-            next((m for m in ctx.bot.get_all_members() if m.id == attachment['author']), attachment['author']))
-        msg = f"{VERI_KEY.get(attachment['veri'], '')} - {username}\n\n" \
-            f"{reports_to_issues(attachment['msg'])}"
+    def get_attachment_message(self, ctx, attachment: Attachment):
+        if isinstance(attachment.author, int):
+            username = str(next((m for m in ctx.bot.get_all_members() if m.id == attachment.author), attachment.author))
+        else:
+            username = attachment.author
+        msg = f"{VERI_KEY.get(attachment.veri, '')} - {username}\n\n" \
+            f"{reports_to_issues(attachment.message)}"
         return msg
 
     async def canrepro(self, author, msg, ctx):
-        if [a for a in self.attachments if a['author'] == ctx and a['veri']]:
+        if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already verified this report.")
-        if self.report_id.startswith('AFR'):
+        if not self.is_bug:
             raise ReportException("You cannot CR a feature request.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': 1
-        }
+        attachment = Attachment.cr(author, msg)
         self.verification += 1
         await self.add_attachment(ctx, attachment)
         await self.notify_subscribers(ctx, f"New CR by <@{author}>: {msg}")
 
     async def upvote(self, author, msg, ctx):
-        if [a for a in self.attachments if a['author'] == author and a['veri']]:
+        if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already upvoted this report.")
-        if self.report_id.startswith('AVR'):
+        if self.is_bug:
             raise ReportException("You cannot upvote a bug report.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': 2
-        }
+        attachment = Attachment.upvote(author, msg)
         self.upvotes += 1
         await self.add_attachment(ctx, attachment)
         if msg:
             await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
         if self.is_open() and not self.github_issue and self.upvotes - self.downvotes >= GITHUB_THRESHOLD:
-            await self.post_to_github(ctx)
+            await self.setup_github(ctx)
         if self.upvotes - self.downvotes in (15, 10):
             await self.update_labels()
 
     async def cannotrepro(self, author, msg, ctx):
-        if [a for a in self.attachments if a['author'] == author and a['veri']]:
+        if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already verified this report.")
-        if self.report_id.startswith('AFR'):
+        if not self.is_bug:
             raise ReportException("You cannot CNR a feature request.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': -1
-        }
+        attachment = Attachment.cnr(author, msg)
         self.verification -= 1
         await self.add_attachment(ctx, attachment)
         await self.notify_subscribers(ctx, f"New CNR by <@{author}>: {msg}")
 
     async def downvote(self, author, msg, ctx):  # lol Dusk was here
-        if [a for a in self.attachments if a['author'] == author and a['veri']]:
+        if [a for a in self.attachments if a.author == author and a.veri]:
             raise ReportException("You have already downvoted this report.")
-        if self.report_id.startswith('AVR'):
+        if self.is_bug:
             raise ReportException("You cannot downvote a bug report.")
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': -2
-        }
+        attachment = Attachment.downvote(author, msg)
         self.downvotes += 1
         await self.add_attachment(ctx, attachment)
         if msg:
@@ -336,8 +354,13 @@ class Report:
         if self.upvotes - self.downvotes in (14, 9):
             await self.update_labels()
 
+    async def addnote(self, author, msg, ctx, add_to_github=True):
+        attachment = Attachment(author, msg)
+        await self.add_attachment(ctx, attachment, add_to_github)
+        await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
+
     async def force_accept(self, ctx):
-        await self.post_to_github(ctx)
+        await self.setup_github(ctx)
 
     async def force_deny(self, ctx):
         self.severity = -1
@@ -347,7 +370,7 @@ class Report:
         msg_ = await self.get_message(ctx)
         if msg_:
             try:
-                await ctx.bot.delete_message(msg_)
+                await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
                 if self.message in Report.message_ids:
@@ -356,16 +379,7 @@ class Report:
                 self.message = None
 
         if self.github_issue:
-            await GitHubClient.get_instance().close_issue(self.github_issue)
-
-    async def addnote(self, author, msg, ctx, add_to_github=True):
-        attachment = {
-            'author': author,
-            'msg': msg,
-            'veri': 0
-        }
-        await self.add_attachment(ctx, attachment, add_to_github)
-        await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
+            await GitHubClient.get_instance().close_issue(self.repo, self.github_issue)
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
@@ -383,14 +397,15 @@ class Report:
         elif self.message in self.message_cache:
             return self.message_cache[self.message]
         else:
-            msg = await ctx.bot.get_message(ctx.bot.get_channel(TRACKER_CHAN), self.message)
+            msg = await ctx.bot.get_channel(constants.TRACKER_CHAN).fetch_message(self.message)
             if msg:
                 Report.message_cache[self.message] = msg
             return msg
 
     async def update(self, ctx):
         try:
-            await ctx.bot.edit_message(await self.get_message(ctx), embed=self.get_embed())
+            msg = await self.get_message(ctx)
+            await msg.edit(embed=self.get_embed())
         except AttributeError:
             return
 
@@ -409,7 +424,7 @@ class Report:
         msg_ = await self.get_message(ctx)
         if msg_:
             try:
-                await ctx.bot.delete_message(msg_)
+                await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
                 if self.message in Report.message_ids:
@@ -426,8 +441,9 @@ class Report:
                 if label in VALID_LABELS:
                     extra_labels.add(label)
             if extra_labels:
-                await GitHubClient.get_instance().label_issue(self.github_issue, self.get_labels() + list(extra_labels))
-            await GitHubClient.get_instance().close_issue(self.github_issue)
+                await GitHubClient.get_instance().label_issue(self.repo, self.github_issue,
+                                                              self.get_labels() + list(extra_labels))
+            await GitHubClient.get_instance().close_issue(self.repo, self.github_issue)
 
         if pend:
             self.pend()
@@ -444,7 +460,7 @@ class Report:
         await self.setup_message(ctx.bot)
 
         if open_github_issue and self.github_issue:
-            await GitHubClient.get_instance().open_issue(self.github_issue)
+            await GitHubClient.get_instance().open_issue(self.repo, self.github_issue)
 
     def pend(self):
         pending = db.jget("pending-reports", [])
@@ -452,27 +468,32 @@ class Report:
         db.jset("pending-reports", pending)
 
     def get_labels(self):
-        labels = [TYPE_LABELS.get(self.report_id[:3]), PRIORITY_LABELS.get(self.severity)]
-        if self.report_id.startswith('AFR') and self.upvotes - self.downvotes > 14:
-            labels.append('+15')
-        elif self.report_id.startswith('AFR') and self.upvotes - self.downvotes > 9:
-            labels.append('+10')
+        labels = [PRIORITY_LABELS.get(self.severity)]
+        if self.is_bug:
+            labels.append("bug")
+        else:
+            labels.append("featurereq")
+            if self.upvotes - self.downvotes > 14:
+                labels.append('+15')
+            elif self.upvotes - self.downvotes > 9:
+                labels.append('+10')
         return [l for l in labels if l]
 
     async def update_labels(self):
         labels = self.get_labels()
-        await GitHubClient.get_instance().label_issue(self.github_issue, labels)
+        await GitHubClient.get_instance().label_issue(self.repo, self.github_issue, labels)
 
     async def edit_title(self, new_title):
-        await GitHubClient.get_instance().rename_issue(self.github_issue, new_title)
+        self.title = new_title
+        await GitHubClient.get_instance().rename_issue(self.repo, self.github_issue, new_title)
 
     async def notify_subscribers(self, ctx, msg):
         msg = f"`{self.report_id}` - {self.title}: {msg}"
         for sub in self.subscribers:
             try:
                 member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
-                await ctx.bot.send_message(member, msg)
-            except:
+                await member.send(msg)
+            except (StopIteration, discord.HTTPException):
                 continue
 
 
@@ -497,10 +518,16 @@ def reports_to_issues(text):
             return report_id
 
         if report.github_issue:
+            if report.repo:
+                return f"{report_id} ({report.repo}#{report.github_issue})"
             return f"{report_id} (#{report.github_issue})"
         return report_id
 
-    return re.sub(r"(\w{3}-\d{3,})", report_sub, text)
+    return re.sub(r"(\w{3,}-\d{3,})", report_sub, text)
+
+
+def identifier_from_repo(repo_name):
+    return constants.REPO_ID_MAP.get(repo_name, 'AVR')
 
 
 class ReportException(Exception):

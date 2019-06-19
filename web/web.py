@@ -1,17 +1,18 @@
 import asyncio
-import re
 
 from aiohttp import web
+from discord.ext import commands
 
-from constants import OWNER_GITHUB
+import constants
 from lib.github import GitHubClient
 from lib.misc import ContextProxy
 from lib.reports import Report, ReportException
 
 PRI_LABEL_NAMES = ("P0", "P1", "P2", "P3", "P4", "P5")
+EXEMPT_LABEL = "enhancement"
 
 
-class Web:
+class Web(commands.Cog):
     # this is probably a really hacky way to run a webhook handler, but eh
     def __init__(self, bot):
         self.bot = bot
@@ -38,40 +39,48 @@ class Web:
     async def issues_handler(self, data):
         issue = data['issue']
         issue_num = issue['number']
+        repo_name = data['repository']['full_name']
         action = data['action']
-        if data['sender']['login'] == 'taine-bot':
+        if repo_name not in constants.REPO_ID_MAP:  # this issue is on a repo we don't listen to
+            return
+        if data['sender']['login'] == constants.MY_GITHUB:
             return
 
         # we only really care about opened or closed
         if action == "closed":
             try:
-                report = Report.from_github(issue_num)
+                report = Report.from_github(repo_name, issue_num)
             except ReportException:  # report not found
                 return  # oh well
 
-            pend = data['sender']['login'] == OWNER_GITHUB
+            pend = data['sender']['login'] == constants.OWNER_GITHUB
 
-            await report.resolve(ContextProxy(self.bot), None, False, pend=pend)
+            await report.resolve(ContextProxy(self.bot), close_github_issue=False, pend=pend)
             report.commit()
         elif action in ("opened", "reopened"):
             # is the issue new?
             try:
-                report = Report.from_github(issue_num)
+                report = Report.from_github(repo_name, issue_num)
             except ReportException:  # report not found
-                report = Report.from_issue(issue)
+                issue_labels = [lab['name'] for lab in issue['labels']]
+                if EXEMPT_LABEL in issue_labels:
+                    return
+
+                report = Report.new_from_issue(repo_name, issue)
                 if not issue['title'].startswith(report.report_id):
-                    formatted_title = re.sub(r'^([A-Z]{3}(-\d+)?\s)?', f"{report.report_id} ",
-                                             issue['title'])
-                    await GitHubClient.get_instance().rename_issue(issue['number'], formatted_title)
-                await GitHubClient.get_instance().add_issue_comment(issue['number'],
+                    formatted_title = f"{report.report_id} {report.title}"
+                    await GitHubClient.get_instance().rename_issue(repo_name, issue['number'], formatted_title)
+
+                # await GitHubClient.get_instance().add_issue_to_project(report.github_issue, report.is_bug)
+                await GitHubClient.get_instance().add_issue_comment(repo_name, issue['number'],
                                                                     f"Tracked as `{report.report_id}`.")
                 await report.update_labels()
 
-            await report.unresolve(ContextProxy(self.bot), None, False)
+            await report.unresolve(ContextProxy(self.bot), open_github_issue=False)
             report.commit()
         elif action in ("labeled", "unlabeled"):
             try:
-                report = Report.from_github(issue_num)
+                report = Report.from_github(repo_name, issue_num)
             except ReportException:  # report not found
                 return  # oh well
 
@@ -91,6 +100,7 @@ class Web:
     async def issue_comment_handler(self, data):
         issue = data['issue']
         issue_num = issue['number']
+        repo_name = data['repository']['full_name']
         comment = data['comment']
         action = data['action']
         username = comment['user']['login']
@@ -100,11 +110,11 @@ class Web:
         # only care about create
         if action == "created":
             try:
-                report = Report.from_github(issue_num)
+                report = Report.from_github(repo_name, issue_num)
             except ReportException:
                 return  # oh well
 
-            await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), False)
+            await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), add_to_github=False)
             report.commit()
             await report.update(ContextProxy(self.bot))
 
