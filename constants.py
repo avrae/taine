@@ -74,6 +74,9 @@ REPO_ID_MAP = {
     "the-testing-zhu/repo4": "TTT"
 }
 
+BUG_PROJECT_ID = 1
+FEATURE_PROJECT_ID = 2
+
 TRACKER_CHAN = 590974619817869341
 
 

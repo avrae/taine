@@ -191,6 +191,8 @@ class Report:
                                                                labels)
         self.github_issue = issue.number
 
+        await GitHubClient.get_instance().add_issue_to_project(issue=issue.number, bug=self.is_bug)
+
     async def setup_message(self, bot):
         report_message = await bot.get_channel(constants.TRACKER_CHAN).send(embed=self.get_embed())
         self.message = report_message.id
