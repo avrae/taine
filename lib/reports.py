@@ -128,8 +128,8 @@ class Report:
 
         is_bug = 'featurereq' not in [lab['name'] for lab in issue['labels']]
 
-        return cls("GitHub", report_id, title, 6,
-                   # pri is created at -1 for unresolve
+        return cls("GitHub", report_id, title, -1,
+                   # pri is created at -1 for unresolve (which changes it to 6)
                    0, attachments, None, github_issue=issue['number'], github_repo=repo_name, is_bug=is_bug)
 
     @classmethod
