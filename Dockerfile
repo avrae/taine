@@ -1,10 +1,12 @@
 FROM python:3.6-stretch
 
-WORKDIR /app
+RUN useradd --create-home taine
+USER taine
+WORKDIR /home/taine
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY --chown=taine:taine requirements.txt .
+RUN pip install --user --no-warn-script-location -r requirements.txt
 
-COPY . .
+COPY --chown=taine:taine . .
 
 ENTRYPOINT python bot.py
