@@ -21,24 +21,10 @@ class Taine(commands.AutoShardedBot):
 
 bot = Taine(command_prefix="~")
 
-TOKEN = os.environ.get("TOKEN")  # os.environ.get("TOKEN")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 ORG_NAME = os.environ.get("ORG_NAME", "avrae")
-REACTIONS = [
-    "\U0001f640",  # scream_cat
-    "\U0001f426",  # bird
-    "\U0001f3f9",  # bow_and_arrow
-    "\U0001f989",  # owl
-    "\U0001f50d",  # mag
-    "bugs:454031039375867925",
-    "panic:354415867313782784",
-    "\U0001f576",  # sunglasses
-    "\U0001f575",  # spy
-    "\U0001f4e9",  # envelope_with_arrow
-    "\U0001f933",  # selfie
-    "\U0001f916",  # robot
-    "\U0001f409",  # dragon
-]
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
 EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl")
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s?(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s?(.+?)(\n|$)")
@@ -105,7 +91,7 @@ async def on_message(message):
 
         await report.setup_message(bot)
         report.commit()
-        await message.add_reaction(random.choice(REACTIONS))
+        await message.add_reaction(random.choice(constants.REACTIONS))
 
     await bot.process_commands(message)
 
@@ -201,10 +187,10 @@ async def unsuball(ctx):
 
 
 if __name__ == '__main__':
-    if not (TOKEN and GITHUB_TOKEN):
-        print("token or github metadata not set.")
+    if not (DISCORD_TOKEN and GITHUB_TOKEN):
+        print("Discord/Github configuration not set")
     else:
         GitHubClient.initialize(GITHUB_TOKEN, ORG_NAME)  # initialize
         for extension in EXTENSIONS:
             bot.load_extension(extension)
-        bot.run(TOKEN)
+        bot.run(DISCORD_TOKEN)
