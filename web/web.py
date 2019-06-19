@@ -41,6 +41,8 @@ class Web(commands.Cog):
         issue_num = issue['number']
         repo_name = data['repository']['full_name']
         action = data['action']
+        if repo_name not in constants.REPO_ID_MAP:  # this issue is on a repo we don't listen to
+            return
         if data['sender']['login'] == constants.MY_GITHUB:
             return
 
