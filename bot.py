@@ -63,21 +63,10 @@ async def on_message(message):
         match = bug_match
         is_bug = True
 
-    if message.channel.id == constants.BUG_CHAN:  # bug-reports
-        identifier = 'AVR'
-        repo = 'avrae/avrae'
-    elif message.channel.id == constants.FEATURE_CHAN:  # feature-request
-        identifier = 'AFR'
-        repo = 'avrae/avrae'
-    elif message.channel.id == constants.WEB_CHAN:  # web-reports
-        identifier = 'WEB'
-        repo = 'avrae/avrae.io'
-    elif message.channel.id == constants.API_CHAN:  # api-reports
-        identifier = 'API'
-        repo = 'avrae/avrae-service'
-    elif message.channel.id == constants.TAINE_CHAN:  # taine-reports
-        identifier = 'TNE'
-        repo = 'avrae/taine'
+    for chan in constants.BUG_LISTEN_CHANS:
+        if message.channel.id == chan['id']:
+            identifier = chan['identifier']
+            repo = chan['repo']
 
     if match and identifier:
         title = match.group(1).strip(" *.\n")
@@ -87,7 +76,7 @@ async def on_message(message):
         report = await Report.new(message.author.id, report_id, title,
                                   [Attachment(message.author.id, message.content)], is_bug=is_bug, repo=repo)
         if not is_bug:
-            await report.post_to_github(await bot.get_context(message))
+            await report.setup_github(await bot.get_context(message))
 
         await report.setup_message(bot)
         report.commit()

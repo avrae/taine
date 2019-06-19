@@ -185,7 +185,7 @@ class Report:
     def is_open(self):
         return self.severity >= 0
 
-    async def post_to_github(self, ctx):
+    async def setup_github(self, ctx):
         if self.github_issue:
             raise ReportException("Issue is already on GitHub.")
         if self.is_bug:
@@ -332,7 +332,7 @@ class Report:
         if msg:
             await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
         if self.is_open() and not self.github_issue and self.upvotes - self.downvotes >= GITHUB_THRESHOLD:
-            await self.post_to_github(ctx)
+            await self.setup_github(ctx)
         if self.upvotes - self.downvotes in (15, 10):
             await self.update_labels()
 
@@ -365,7 +365,7 @@ class Report:
         await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
 
     async def force_accept(self, ctx):
-        await self.post_to_github(ctx)
+        await self.setup_github(ctx)
 
     async def force_deny(self, ctx):
         self.severity = -1

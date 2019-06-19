@@ -1,10 +1,9 @@
 import asyncio
-import re
 
 from aiohttp import web
 from discord.ext import commands
 
-from constants import OWNER_GITHUB
+import constants
 from lib.github import GitHubClient
 from lib.misc import ContextProxy
 from lib.reports import Report, ReportException
@@ -42,7 +41,7 @@ class Web(commands.Cog):
         issue_num = issue['number']
         repo_name = data['repository']['full_name']
         action = data['action']
-        if data['sender']['login'] == 'taine-bot':
+        if data['sender']['login'] == constants.MY_GITHUB:
             return
 
         # we only really care about opened or closed
@@ -52,7 +51,7 @@ class Web(commands.Cog):
             except ReportException:  # report not found
                 return  # oh well
 
-            pend = data['sender']['login'] == OWNER_GITHUB
+            pend = data['sender']['login'] == constants.OWNER_GITHUB
 
             await report.resolve(ContextProxy(self.bot), close_github_issue=False, pend=pend)
             report.commit()
