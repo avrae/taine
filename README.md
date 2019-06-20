@@ -4,6 +4,17 @@
 
 Taine is the main bot to track Avrae bugs and feature requests in Discord.  
 
+## How it works
+Taine is currently set to listen for issues on [avrae/avrae](https://github.com/avrae/avrae), [avrae/avrae.io](https://github.com/avrae/avrae.io), [avrae/avrae-service](https://github.com/avrae/avrae-service), and [avrae/taine](https://github.com/avrae/taine).
+Whenever an issue is opened on any of those repositories, it follows this logic:
+- Is the issue tagged with `enhancement`?
+    - If so, the issue is an internal improvement. Taine does not track it.
+- Is the issue tagged with `featurereq`?
+    - If so, track the issue and copy it to Discord. Taine will set up a post in the tracker channel to allow users to vote on it.
+- Is the issue tagged with `bug`, or untagged?
+    - If so, track the issue as a bug and copy it to Discord.
+
+
 ## Requirements
 
 - Python 3.6
@@ -14,17 +25,16 @@ Set the following environment variables:
 
 - `DISCORD_TOKEN` - a Discord bot token.
 - `GITHUB_TOKEN` - a Github Personal Access Token.
-- `GITHUB_REPO` - path to the Github repository, defaults to `avrae/avrae`.
+- `ORG_NAME` - name of the GitHub org your repos are in, defaults to `avrae`.
 
 Other configuration is via `constants.py`:
 
 - `OWNER_ID` - the Discord User ID of the bot's owner. Used to check if a user can run owner-only commands.
-- `BUG_CHAN` - the Discord Channel ID of the channel to listen for bug reports.
-- `DDB_CHAN` - the Discord Channel ID of the channel to listen for D&D Beyond bug reports.
-- `FEATURE_CHAN` - the Discord Channel ID of the channel to listen for feature requests.
-- `WEB_CHAN` - the Discord Channel ID of the channel FIXME
+- `BUG_LISTEN_CHANS` - a list of dictionaries representing what channels to listen in, and the identifier and repo associated with that channel.
+- `REPO_ID_MAP` - a dictionary defining what repos to listen for issues on, and the default identifier for issues opened on those repos.
 - `TRACKER_CHAN` - the Discord Channel ID of the channel to post all generated reports.
-- `OWNER_GITHUB` - the Github username of FIXME
+- `OWNER_GITHUB` - issues closed by anyone other than this username will not be marked as pending for next patch.
+- `MY_GITHUB` - the GitHub username of the bot.
 - `REACTIONS` - a list of Unicode/Discord reactions that the bot will react to reports with.
 
 All constants must be unique.
