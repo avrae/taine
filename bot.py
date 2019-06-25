@@ -168,11 +168,11 @@ async def unsuball(ctx):
     fe = Attr("subscribers").contains(ctx.author.id)
     while lek is not None:
         if lek is sentinel:
-            response = await db.reports.scan(
+            response = db.reports.scan(
                 FilterExpression=fe
             )
         else:
-            response = await db.reports.scan(
+            response = db.reports.scan(
                 FilterExpression=fe,
                 ExclusiveStartKey=lek
             )
@@ -181,7 +181,7 @@ async def unsuball(ctx):
         for report in response['Items']:
             i = report['subscribers'].index(ctx.author.id)
             num_unsubbed += 1
-            await db.reports.update_item(
+            db.reports.update_item(
                 Key={"report_id": report['report_id']},
                 UpdateExpression=f"REMOVE subscribers[{i}]"
             )

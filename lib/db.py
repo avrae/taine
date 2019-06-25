@@ -1,14 +1,14 @@
-import aioboto3
+import boto3
 
 # for use imported elsewhere
-dynamo = aioboto3.resource('dynamodb', endpoint_url="http://localhost:8000")
+dynamo = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
 reports = dynamo.Table('taine.reports')
 reportnums = dynamo.Table('taine.reportnums')
 
 
 # set up the tables
 async def _setup():
-    reports_table = await dynamo.create_table(
+    reports_table = dynamo.create_table(
         TableName='taine.reports',
         KeySchema=[
             {
@@ -40,6 +40,10 @@ async def _setup():
                         'AttributeName': 'github_issue',
                         'KeyType': 'HASH'
                     },
+                    {
+                        'AttributeName': 'github_repo',
+                        'KeyType': 'RANGE'
+                    },
                 ],
                 'Projection': {
                     'ProjectionType': 'ALL',
@@ -63,6 +67,10 @@ async def _setup():
                 'AttributeName': 'github_issue',
                 'AttributeType': 'N'
             },
+            {
+                'AttributeName': 'github_repo',
+                'AttributeType': 'S'
+            },
         ],
         ProvisionedThroughput={
             'ReadCapacityUnits': 10,
@@ -76,7 +84,7 @@ async def _setup():
     #     "identifier": "AVR",
     #     "num": 123
     # }
-    report_nums_table = await dynamo.create_table(
+    report_nums_table = dynamo.create_table(
         TableName='taine.reportnums',
         KeySchema=[
             {
@@ -96,8 +104,6 @@ async def _setup():
         }
     )
     print(report_nums_table)
-
-    await dynamo.close()
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ async def run():
         old_reportnums = json.load(f)
 
     for identifier, num in old_reportnums.items():
-        await db.reportnums.put_item(Item={
+        db.reportnums.put_item(Item={
             "identifier": identifier,
             "num": num
         })
@@ -31,7 +31,7 @@ async def run():
             if attachment['message'] == '':
                 attachment['message'] = None
 
-        await db.reports.put_item(Item=old_report)
+        db.reports.put_item(Item=old_report)
 
 
 if __name__ == '__main__':

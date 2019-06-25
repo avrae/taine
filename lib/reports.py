@@ -1,9 +1,11 @@
 import re
+from decimal import Decimal
 
 import discord
 from cachetools import LRUCache
 
 import constants
+import lib.db as ddb
 from lib.github import GitHubClient
 
 PRIORITY = {
@@ -39,11 +41,17 @@ UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
 GITHUB_THRESHOLD = 5
 
+# we use 0 for a sentinel value since
+# it's an invalid ID in both Discord and GitHub
+# and falsy, which is compatible with old None checks
+MESSAGE_SENTINEL = 0
+GITHUB_ISSUE_SENTINEL = 0
+
 
 class Attachment:
-    def __init__(self, author, message: str = '', veri: int = 0):
+    def __init__(self, author, message: str = None, veri: int = 0):
         self.author = author
-        self.message = message
+        self.message = message or None
         self.veri = veri
 
     @classmethod
@@ -72,38 +80,41 @@ class Attachment:
 
 class Report:
     message_cache = LRUCache(maxsize=100)
-    message_ids = {report.get('message'): id_ for id_, report in db.jget('reports', {}).items() if
-                   report.get('message')}  # todo change to db index
 
     def __init__(self, reporter, report_id: str, title: str, severity: int, verification: int, attachments: list,
                  message, upvotes: int = 0, downvotes: int = 0, github_issue: int = None, github_repo: str = None,
-                 subscribers: list = None, is_bug: bool = True):
+                 subscribers: list = None, is_bug: bool = True, pending: bool = False):
         if subscribers is None:
             subscribers = []
         if github_repo is None:
             github_repo = 'avrae/avrae'
+        if message is None:
+            message = 0
+        if github_issue is None:
+            github_issue = 0
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
         self.severity = severity
 
         self.attachments = attachments
-        self.message: int = message
+        self.message = int(message)
         self.subscribers = subscribers
 
         self.repo: str = github_repo
-        self.github_issue = github_issue
+        self.github_issue = int(github_issue)
 
         self.is_bug = is_bug
+        self.verification = verification
         self.upvotes = upvotes
         self.downvotes = downvotes
 
-        self.verification = verification
+        self.pending = pending
 
     @classmethod
     async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, repo=None):
         subscribers = None
-        if isinstance(reporter, int):
+        if isinstance(reporter, Decimal):
             subscribers = [reporter]
         inst = cls(reporter, report_id, title, 6, 0, attachments, None, subscribers=subscribers, is_bug=is_bug,
                    github_repo=repo)
@@ -140,36 +151,37 @@ class Report:
             'verification': self.verification, 'upvotes': self.upvotes, 'downvotes': self.downvotes,
             'attachments': [a.to_dict() for a in self.attachments], 'message': self.message,
             'github_issue': self.github_issue, 'github_repo': self.repo, 'subscribers': self.subscribers,
-            'is_bug': self.is_bug
+            'is_bug': self.is_bug, 'pending': self.pending
         }
 
     @classmethod
     def from_id(cls, report_id):
-        reports = db.jget("reports", {})
+        response = ddb.reports.get_item(
+            Key={"report_id": report_id.upper()}
+        )
         try:
-            return cls.from_dict(reports[report_id.upper()])
+            return cls.from_dict(response['Item'])
         except KeyError:
             raise ReportException("Report not found.")
 
     @classmethod
     def from_message_id(cls, message_id):
-        report_id = Report.message_ids.get(message_id)
-        if report_id:
-            reports = db.jget("reports", {})
-            try:
-                return cls.from_dict(reports[report_id.upper()])
-            except KeyError:
-                raise ReportException("Report not found.")
-        raise ReportException("Report not found.")
+        response = ddb.reports.get_item(
+            Key={"message": message_id}
+        )
+        try:
+            return cls.from_dict(response['Item'])
+        except KeyError:
+            raise ReportException("Report not found.")
 
     @classmethod
     def from_github(cls, repo_name, issue_num):
-        reports = db.jget("reports", {})
+        response = ddb.reports.get_item(
+            Key={"github_issue": issue_num, "github_repo": repo_name}
+        )
         try:
-            return cls.from_dict(  # todo change to github index
-                next(r for r in reports.values() if
-                     r.get('github_issue') == issue_num and r.get('github_repo') == repo_name))
-        except StopIteration:
+            return cls.from_dict(response['Item'])
+        except KeyError:
             raise ReportException("Report not found.")
 
     def is_open(self):
@@ -193,19 +205,16 @@ class Report:
     async def setup_message(self, bot):
         report_message = await bot.get_channel(constants.TRACKER_CHAN).send(embed=self.get_embed())
         self.message = report_message.id
-        Report.message_ids[report_message.id] = self.report_id
         if not self.is_bug:
             await report_message.add_reaction(UPVOTE_REACTION)
             await report_message.add_reaction(DOWNVOTE_REACTION)
 
     def commit(self):
-        reports = db.jget("reports", {})
-        reports[self.report_id] = self.to_dict()
-        db.jset("reports", reports)
+        ddb.reports.put_item(Item=self.to_dict())
 
     def get_embed(self, detailed=False, ctx=None):
         embed = discord.Embed()
-        if isinstance(self.reporter, int):
+        if isinstance(self.reporter, Decimal):
             embed.add_field(name="Added By", value=f"<@{self.reporter}>")
         else:
             embed.add_field(name="Added By", value=self.reporter)
@@ -234,11 +243,14 @@ class Report:
                 raise ValueError("Context not supplied for detailed call.")
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
-                if isinstance(attachment.author, int):
+                if isinstance(attachment.author, Decimal):
                     user = ctx.guild.get_member(attachment.author)
                 else:
                     user = attachment.author
-                msg = attachment.message[:1020] or "No details."
+                if attachment.message:
+                    msg = attachment.message[:1020]
+                else:
+                    msg = "No details."
                 embed.add_field(name=f"{VERI_EMOJI.get(attachment.veri, '')} {user}",
                                 value=msg)
 
@@ -279,7 +291,7 @@ class Report:
         return desc
 
     def get_issue_link(self):
-        if self.github_issue is None:
+        if self.github_issue is GITHUB_ISSUE_SENTINEL:
             return None
         return f"https://github.com/{self.repo}/issues/{self.github_issue}"
 
@@ -295,10 +307,13 @@ class Report:
                                                                   self.get_github_desc(ctx))
 
     def get_attachment_message(self, ctx, attachment: Attachment):
-        if isinstance(attachment.author, int):
+        if isinstance(attachment.author, Decimal):
             username = str(next((m for m in ctx.bot.get_all_members() if m.id == attachment.author), attachment.author))
         else:
             username = attachment.author
+
+        if not attachment.message:
+            return f"{VERI_KEY.get(attachment.veri, '')} - {username}"
         msg = f"{VERI_KEY.get(attachment.veri, '')} - {username}\n\n" \
             f"{reports_to_issues(attachment.message)}"
         return msg
@@ -370,10 +385,8 @@ class Report:
                 await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
-                if self.message in Report.message_ids:
-                    del Report.message_ids[self.message]
             finally:
-                self.message = None
+                self.message = MESSAGE_SENTINEL
 
         if self.github_issue:
             await GitHubClient.get_instance().close_issue(self.repo, self.github_issue)
@@ -389,7 +402,7 @@ class Report:
             self.subscribers.remove(ctx.message.author.id)
 
     async def get_message(self, ctx):
-        if self.message is None:
+        if self.message is MESSAGE_SENTINEL:
             return None
         elif self.message in self.message_cache:
             return self.message_cache[self.message]
@@ -424,10 +437,8 @@ class Report:
                 await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
-                if self.message in Report.message_ids:
-                    del Report.message_ids[self.message]
             finally:
-                self.message = None
+                self.message = MESSAGE_SENTINEL
 
         if close_github_issue and self.github_issue:
             extra_labels = set()
@@ -460,9 +471,7 @@ class Report:
             await GitHubClient.get_instance().open_issue(self.repo, self.github_issue)
 
     def pend(self):
-        pending = db.jget("pending-reports", [])
-        pending.append(self.report_id)
-        db.jset("pending-reports", pending)
+        self.pending = True
 
     def get_labels(self):
         labels = [PRIORITY_LABELS.get(self.severity)]
@@ -495,10 +504,13 @@ class Report:
 
 
 def get_next_report_num(identifier):
-    id_nums = db.jget("reportnums", {})
-    num = id_nums.get(identifier, 0) + 1
-    id_nums[identifier] = num
-    db.jset("reportnums", id_nums)
+    """Increments the report number of an identifier and returns the latest report ID."""
+    response = ddb.reportnums.update_item(
+        Key={"identifier": identifier},
+        UpdateExpression="ADD num 1",
+        ReturnValues="UPDATED_NEW"
+    )
+    num = int(response['Attributes']['num'])
     return f"{num:0>3}"
 
 
