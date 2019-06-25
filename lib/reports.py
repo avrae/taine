@@ -5,9 +5,6 @@ from cachetools import LRUCache
 
 import constants
 from lib.github import GitHubClient
-from lib.jsondb import JSONDB
-
-db = JSONDB()  # something something instancing
 
 PRIORITY = {
     -2: "Patch Pending", -1: "Resolved",
@@ -76,7 +73,7 @@ class Attachment:
 class Report:
     message_cache = LRUCache(maxsize=100)
     message_ids = {report.get('message'): id_ for id_, report in db.jget('reports', {}).items() if
-                   report.get('message')}
+                   report.get('message')}  # todo change to db index
 
     def __init__(self, reporter, report_id: str, title: str, severity: int, verification: int, attachments: list,
                  message, upvotes: int = 0, downvotes: int = 0, github_issue: int = None, github_repo: str = None,
@@ -169,7 +166,7 @@ class Report:
     def from_github(cls, repo_name, issue_num):
         reports = db.jget("reports", {})
         try:
-            return cls.from_dict(
+            return cls.from_dict(  # todo change to github index
                 next(r for r in reports.values() if
                      r.get('github_issue') == issue_num and r.get('github_repo') == repo_name))
         except StopIteration:
