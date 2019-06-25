@@ -4,19 +4,19 @@ import re
 import sys
 import traceback
 
+from boto3.dynamodb.conditions import Attr
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 
 import constants
+from lib import db
 from lib.github import GitHubClient
-from lib.jsondb import JSONDB
 from lib.reports import Attachment, Report, get_next_report_num
 
 
 class Taine(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super(Taine, self).__init__(*args, **kwargs)
-        self.db = JSONDB()
 
 
 bot = Taine(command_prefix="~")
@@ -162,16 +162,30 @@ async def subscribe(ctx, report_id):
 @bot.command()
 async def unsuball(ctx):
     """Unsubscribes from all reports."""
-    reports = bot.db.jget("reports", {})
     num_unsubbed = 0
+    sentinel = lek = object()
 
-    for _id, report in reports.items():
-        if ctx.message.author.id in report.get('subscribers', []):
-            report['subscribers'].remove(ctx.message.author.id)
+    fe = Attr("subscribers").contains(ctx.author.id)
+    while lek is not None:
+        if lek is sentinel:
+            response = await db.reports.scan(
+                FilterExpression=fe
+            )
+        else:
+            response = await db.reports.scan(
+                FilterExpression=fe,
+                ExclusiveStartKey=lek
+            )
+
+        lek = response.get('LastEvaluatedKey')
+        for report in response['Items']:
+            i = report['subscribers'].index(ctx.author.id)
             num_unsubbed += 1
-            reports[_id] = report
+            await db.reports.update_item(
+                Key={"report_id": report['report_id']},
+                UpdateExpression=f"REMOVE subscribers[{i}]"
+            )
 
-    bot.db.jset("reports", reports)
     await ctx.send(f"OK, unsubscribed from {num_unsubbed} reports.")
 
 
