@@ -2,6 +2,7 @@ import re
 from decimal import Decimal
 
 import discord
+from boto3.dynamodb.conditions import Key
 from cachetools import LRUCache
 
 import constants
@@ -166,22 +167,24 @@ class Report:
 
     @classmethod
     def from_message_id(cls, message_id):
-        response = ddb.reports.get_item(
-            Key={"message": message_id}
+        response = ddb.reports.query(
+            KeyConditionExpression=Key("message").eq(message_id),
+            IndexName="message_id"
         )
         try:
-            return cls.from_dict(response['Item'])
-        except KeyError:
+            return cls.from_dict(response['Items'][0])
+        except IndexError:
             raise ReportException("Report not found.")
 
     @classmethod
     def from_github(cls, repo_name, issue_num):
         response = ddb.reports.get_item(
-            Key={"github_issue": issue_num, "github_repo": repo_name}
+            KeyConditionExpression=Key("github_issue").eq(issue_num) & Key("github_repo").eq(repo_name),
+            IndexName="github_issue"
         )
         try:
-            return cls.from_dict(response['Item'])
-        except KeyError:
+            return cls.from_dict(response['Items'][0])
+        except IndexError:
             raise ReportException("Report not found.")
 
     def is_open(self):
