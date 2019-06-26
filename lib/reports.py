@@ -115,7 +115,7 @@ class Report:
     @classmethod
     async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, repo=None):
         subscribers = None
-        if isinstance(reporter, Decimal):
+        if isinstance(reporter, (int, Decimal)):
             subscribers = [reporter]
         inst = cls(reporter, report_id, title, 6, 0, attachments, None, subscribers=subscribers, is_bug=is_bug,
                    github_repo=repo)
@@ -217,7 +217,7 @@ class Report:
 
     def get_embed(self, detailed=False, ctx=None):
         embed = discord.Embed()
-        if isinstance(self.reporter, Decimal):
+        if isinstance(self.reporter, (int, Decimal)):
             embed.add_field(name="Added By", value=f"<@{self.reporter}>")
         else:
             embed.add_field(name="Added By", value=self.reporter)
@@ -246,7 +246,7 @@ class Report:
                 raise ValueError("Context not supplied for detailed call.")
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
-                if isinstance(attachment.author, Decimal):
+                if isinstance(attachment.author, (int, Decimal)):
                     user = ctx.guild.get_member(attachment.author)
                 else:
                     user = attachment.author
@@ -310,7 +310,7 @@ class Report:
                                                                   self.get_github_desc(ctx))
 
     def get_attachment_message(self, ctx, attachment: Attachment):
-        if isinstance(attachment.author, Decimal):
+        if isinstance(attachment.author, (int, Decimal)):
             username = str(next((m for m in ctx.bot.get_all_members() if m.id == attachment.author), attachment.author))
         else:
             username = attachment.author
@@ -510,7 +510,8 @@ def get_next_report_num(identifier):
     """Increments the report number of an identifier and returns the latest report ID."""
     response = ddb.reportnums.update_item(
         Key={"identifier": identifier},
-        UpdateExpression="ADD num 1",
+        UpdateExpression="ADD num :one",
+        ExpressionAttributeValues={":one": 1},
         ReturnValues="UPDATED_NEW"
     )
     num = int(response['Attributes']['num'])
