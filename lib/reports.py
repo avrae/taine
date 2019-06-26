@@ -415,12 +415,22 @@ class Report:
                 Report.message_cache[self.message] = msg
             return msg
 
+    async def delete_message(self, ctx):
+        msg_ = await self.get_message(ctx)
+        if msg_:
+            try:
+                await msg_.delete()
+                if self.message in Report.message_cache:
+                    del Report.message_cache[self.message]
+            finally:
+                self.message = MESSAGE_SENTINEL
+
     async def update(self, ctx):
-        try:
-            msg = await self.get_message(ctx)
+        msg = await self.get_message(ctx)
+        if msg is None:
+            await self.setup_message(ctx.bot)
+        else:
             await msg.edit(embed=self.get_embed())
-        except AttributeError:
-            return
 
     async def resolve(self, ctx, msg='', close_github_issue=True, pend=False, ignore_closed=False):
         if self.severity == -1 and not ignore_closed:
@@ -434,14 +444,7 @@ class Report:
         if msg:
             await self.addnote(ctx.message.author.id, f"Resolved - {msg}", ctx)
 
-        msg_ = await self.get_message(ctx)
-        if msg_:
-            try:
-                await msg_.delete()
-                if self.message in Report.message_cache:
-                    del Report.message_cache[self.message]
-            finally:
-                self.message = MESSAGE_SENTINEL
+        await self.delete_message(ctx)
 
         if close_github_issue and self.github_issue:
             extra_labels = set()
@@ -472,6 +475,13 @@ class Report:
 
         if open_github_issue and self.github_issue:
             await GitHubClient.get_instance().open_issue(self.repo, self.github_issue)
+
+    async def untrack(self, ctx):
+        await self.delete_message(ctx)
+        if self.github_issue:
+            await GitHubClient.get_instance().rename_issue(self.repo, self.github_issue, self.title)
+
+        ddb.reports.delete_item(Key={"report_id": self.report_id})
 
     def pend(self):
         self.pending = True
