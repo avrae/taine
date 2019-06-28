@@ -86,7 +86,7 @@ class Owner(commands.Cog):
         await report.update(ctx)
         await ctx.send(f"Changed priority of `{report.report_id}`: {report.title} to P{pri}.")
 
-    @commands.command(aliases=['pend'])
+    @commands.group(aliases=['pend'], invoke_without_command=True)
     async def pending(self, ctx, *reports):
         """Owner only - Marks reports as pending for next patch."""
         if not ctx.message.author.id == constants.OWNER_ID:
@@ -105,6 +105,26 @@ class Owner(commands.Cog):
             await ctx.send(f"Marked {len(reports)} reports as patch pending.")
         else:
             await ctx.send(f"Marked {len(reports)} reports as patch pending. {not_found} reports were not found.")
+
+    @pending.command(name="list")
+    async def pending_list(self, ctx):
+        pending = self.bot.db.jget("pending-reports", [])
+        out = ', '.join(f"`{_id}`" for _id in pending)
+        await ctx.send(f"Pending reports: {out}")
+
+    @commands.command()
+    async def unpend(self, ctx, *reports):
+        if not ctx.message.author.id == constants.OWNER_ID:
+            return
+        unpended = 0
+        pending = self.bot.db.jget("pending-reports", [])
+        for report_id in reports:
+            report_id = report_id.strip('`,')
+            if report_id in pending:
+                pending.remove(report_id)
+                unpended += 1
+        self.bot.db.jset("pending-reports", pending)
+        await ctx.send(f"Unpended {unpended} reports.")
 
     @commands.command(aliases=['release'])
     async def update(self, ctx, build_id, *, msg=""):
