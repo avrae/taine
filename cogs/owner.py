@@ -1,9 +1,11 @@
 import copy
 
 import discord
+from boto3.dynamodb.conditions import Attr
 from discord.ext import commands
 
 import constants
+from lib import db
 from lib.reports import Report, ReportException, get_next_report_num
 
 
@@ -132,20 +134,37 @@ class Owner(commands.Cog):
         if not ctx.message.author.id == constants.OWNER_ID:
             return
         changelog = ""
-        for _id in list(set(self.bot.db.jget("pending-reports", []))):
-            report = Report.from_id(_id)
-            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
-            report.commit()
-            action = "Fixed"
-            if not report.is_bug:
-                action = "Added"
-            if report.get_issue_link():
-                changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
+
+        sentinel = lek = object()
+        fe = Attr("pending").eq(True)
+        while lek is not None:  # find all pending=True reports
+            if lek is sentinel:
+                response = db.reports.scan(
+                    FilterExpression=fe,
+                )
             else:
-                changelog += f"- {action} `{report.report_id}` {report.title}\n"
+                response = db.reports.scan(
+                    FilterExpression=fe,
+                    ExclusiveStartKey=lek
+                )
+
+            lek = response.get('LastEvaluatedKey')
+            for report_data in response['Items']:
+                report = Report.from_dict(report_data)
+                await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
+                report.pending = False
+                report.commit()
+
+                action = "Fixed"
+                if not report.is_bug:
+                    action = "Added"
+                if report.get_issue_link():
+                    changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
+                else:
+                    changelog += f"- {action} `{report.report_id}` {report.title}\n"
+
         changelog += msg
 
-        self.bot.db.jset("pending-reports", [])
         await ctx.send(embed=discord.Embed(title=f"**Build {build_id}**", description=changelog, colour=0x87d37c))
         await ctx.message.delete()
 
