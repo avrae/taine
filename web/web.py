@@ -22,7 +22,7 @@ class Web(commands.Cog):
         app = web.Application(loop=loop)
         app.router.add_post('/github', self.github_handler)
         app.router.add_get('/github', self.health_check)
-        self.run_app(app, host="127.0.0.1", port=8378)  # taine's discrim, lol
+        self.run_app(app, host="0.0.0.0", port=8378)  # taine's discrim, lol
 
     async def github_handler(self, request):
         if not request.headers.get("User-Agent", "").startswith("GitHub-Hookshot/"):
