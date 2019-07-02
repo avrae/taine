@@ -246,7 +246,7 @@ class Report:
                 raise ValueError("Context not supplied for detailed call.")
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
-                if isinstance(attachment.author, (int, Decimal)):
+                if isinstance(attachment.author, (int, Decimal)) and ctx.guild:
                     user = ctx.guild.get_member(attachment.author)
                 else:
                     user = attachment.author
