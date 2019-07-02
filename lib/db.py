@@ -5,7 +5,7 @@ import boto3
 DYNAMODB_URL = os.environ.get("DYNAMODB_URL", "http://localhost:8000")
 
 # for use imported elsewhere
-dynamo = boto3.resource('dynamodb', endpoint_url=DYNAMODB_URL)
+dynamo = boto3.resource('dynamodb', endpoint_url=DYNAMODB_URL, region_name='us-east-1')
 reports = dynamo.Table('taine.reports')
 reportnums = dynamo.Table('taine.reportnums')
 
