@@ -178,7 +178,7 @@ class Report:
 
     @classmethod
     def from_github(cls, repo_name, issue_num):
-        response = ddb.reports.get_item(
+        response = ddb.reports.query(
             KeyConditionExpression=Key("github_issue").eq(issue_num) & Key("github_repo").eq(repo_name),
             IndexName="github_issue"
         )
