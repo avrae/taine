@@ -21,6 +21,7 @@ class Web(commands.Cog):
         loop = self.bot.loop
         app = web.Application(loop=loop)
         app.router.add_post('/github', self.github_handler)
+        app.router.add_get('/github', self.health_check)
         self.run_app(app, host="127.0.0.1", port=8378)  # taine's discrim, lol
 
     async def github_handler(self, request):
@@ -37,6 +38,9 @@ class Web(commands.Cog):
             await self.issue_comment_handler(data)
 
         return web.Response()
+
+    async def health_check(self, _):
+        return web.Response(body="Healthy")
 
     # ===== github: issue event =====
     async def issues_handler(self, data):
