@@ -131,7 +131,7 @@ class Web(commands.Cog):
                     priority = i
                     break
             report.severity = priority
-            report.is_bug = FEATURE_LABEL in label_names
+            report.is_bug = FEATURE_LABEL not in label_names
             report.commit()
             await report.update(ctx)
 
