@@ -101,7 +101,7 @@ class Web(commands.Cog):
         return report
 
     async def report_labeled(self, data):
-        await asyncio.sleep(1)  # prevent a race condition when an issue is newly created
+        await asyncio.sleep(10)  # prevent a race condition when an issue is newly created
         issue = data['issue']
         issue_num = issue['number']
         repo_name = data['repository']['full_name']
