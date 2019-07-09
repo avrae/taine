@@ -432,7 +432,7 @@ class Report:
 
     async def update(self, ctx):
         msg = await self.get_message(ctx)
-        if msg is None:
+        if msg is None and self.severity >= 0:
             await self.setup_message(ctx.bot)
         else:
             await msg.edit(embed=self.get_embed())
