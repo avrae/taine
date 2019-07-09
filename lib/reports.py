@@ -422,6 +422,8 @@ class Report:
                 await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
+            except discord.HTTPException:
+                pass
             finally:
                 self.message = MESSAGE_SENTINEL
 
@@ -485,6 +487,9 @@ class Report:
 
     def pend(self):
         self.pending = True
+
+    def unpend(self):
+        self.pending = False
 
     def get_labels(self):
         labels = [PRIORITY_LABELS.get(self.severity)]

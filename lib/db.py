@@ -10,6 +10,24 @@ reports = dynamo.Table('taine.reports')
 reportnums = dynamo.Table('taine.reportnums')
 
 
+async def query(table, filter_exp):
+    sentinel = lek = object()
+    while lek is not None:
+        if lek is sentinel:
+            response = table.scan(
+                FilterExpression=filter_exp,
+            )
+        else:
+            response = table.scan(
+                FilterExpression=filter_exp,
+                ExclusiveStartKey=lek
+            )
+
+        lek = response.get('LastEvaluatedKey')
+        for report_data in response['Items']:
+            yield report_data
+
+
 # set up the tables
 async def _setup():
     reports_table = dynamo.create_table(
