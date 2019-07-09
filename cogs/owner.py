@@ -6,6 +6,7 @@ from discord.ext import commands
 
 import constants
 from lib import db
+from lib.db import query
 from lib.reports import Report, ReportException, get_next_report_num
 
 
@@ -110,23 +111,31 @@ class Owner(commands.Cog):
 
     @pending.command(name="list")
     async def pending_list(self, ctx):
-        pending = self.bot.db.jget("pending-reports", [])
-        out = ', '.join(f"`{_id}`" for _id in pending)
+        out = []
+        async for report_data in query(db.reports, Attr("pending").eq(True)):
+            out.append(Report.from_dict(report_data).report_id)
+
+        out = ', '.join(f"`{_id}`" for _id in out)
         await ctx.send(f"Pending reports: {out}")
 
     @commands.command()
     async def unpend(self, ctx, *reports):
         if not ctx.message.author.id == constants.OWNER_ID:
             return
-        unpended = 0
-        pending = self.bot.db.jget("pending-reports", [])
-        for report_id in reports:
-            report_id = report_id.strip('`,')
-            if report_id in pending:
-                pending.remove(report_id)
-                unpended += 1
-        self.bot.db.jset("pending-reports", pending)
-        await ctx.send(f"Unpended {unpended} reports.")
+        not_found = 0
+        for _id in reports:
+            try:
+                report = Report.from_id(_id)
+            except ReportException:
+                not_found += 1
+                continue
+            report.unpend()
+            report.commit()
+            await report.update(ctx)
+        if not not_found:
+            await ctx.send(f"Unpended {len(reports)} reports.")
+        else:
+            await ctx.send(f"Unpended {len(reports) - not_found} reports. {not_found} reports were not found.")
 
     @commands.command(aliases=['release'])
     async def update(self, ctx, build_id, *, msg=""):
@@ -135,33 +144,19 @@ class Owner(commands.Cog):
             return
         changelog = ""
 
-        sentinel = lek = object()
-        fe = Attr("pending").eq(True)
-        while lek is not None:  # find all pending=True reports
-            if lek is sentinel:
-                response = db.reports.scan(
-                    FilterExpression=fe,
-                )
+        async for report_data in query(db.reports, Attr("pending").eq(True)):  # find all pending=True reports
+            report = Report.from_dict(report_data)
+            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
+            report.pending = False
+            report.commit()
+
+            action = "Fixed"
+            if not report.is_bug:
+                action = "Added"
+            if report.get_issue_link():
+                changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
             else:
-                response = db.reports.scan(
-                    FilterExpression=fe,
-                    ExclusiveStartKey=lek
-                )
-
-            lek = response.get('LastEvaluatedKey')
-            for report_data in response['Items']:
-                report = Report.from_dict(report_data)
-                await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
-                report.pending = False
-                report.commit()
-
-                action = "Fixed"
-                if not report.is_bug:
-                    action = "Added"
-                if report.get_issue_link():
-                    changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
-                else:
-                    changelog += f"- {action} `{report.report_id}` {report.title}\n"
+                changelog += f"- {action} `{report.report_id}` {report.title}\n"
 
         changelog += msg
 
