@@ -410,7 +410,10 @@ class Report:
         elif self.message in self.message_cache:
             return self.message_cache[self.message]
         else:
-            msg = await ctx.bot.get_channel(constants.TRACKER_CHAN).fetch_message(self.message)
+            try:
+                msg = await ctx.bot.get_channel(constants.TRACKER_CHAN).fetch_message(self.message)
+            except discord.HTTPException:
+                msg = None
             if msg:
                 Report.message_cache[self.message] = msg
             return msg
