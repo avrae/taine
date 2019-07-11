@@ -1,3 +1,4 @@
+import os
 import re
 from decimal import Decimal
 
@@ -40,7 +41,10 @@ VERI_KEY = {
 GITHUB_BASE = "https://github.com"
 UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
-GITHUB_THRESHOLD = 5
+# how many upvotes a feature req needs to be added to GitHub
+GITHUB_THRESHOLD = int(os.environ.get("FR_APPROVE_THRESHOLD", 5))
+# how many downvotes a feature req needs to be closed automatically
+CLOSE_THRESHOLD = int(os.environ.get("FR_DENY_THRESHOLD", -3))
 
 # we use 0 for a sentinel value since
 # it's an invalid ID in both Discord and GitHub
@@ -368,6 +372,8 @@ class Report:
             await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
         if self.upvotes - self.downvotes in (14, 9):
             await self.update_labels()
+        if self.upvotes - self.downvotes <= CLOSE_THRESHOLD:
+            await self.resolve(ctx, f"This report was closed because it fell below a score of {CLOSE_THRESHOLD}.")
 
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = Attachment(author, msg)
@@ -432,7 +438,7 @@ class Report:
 
     async def update(self, ctx):
         msg = await self.get_message(ctx)
-        if msg is None and self.severity >= 0:
+        if msg is None and self.is_open():
             await self.setup_message(ctx.bot)
         else:
             await msg.edit(embed=self.get_embed())
