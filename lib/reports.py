@@ -1,3 +1,4 @@
+import os
 import re
 from decimal import Decimal
 
@@ -40,8 +41,10 @@ VERI_KEY = {
 GITHUB_BASE = "https://github.com"
 UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
-GITHUB_THRESHOLD = 5  # how many upvotes a feature req needs to be added to GitHub
-CLOSE_THRESHOLD = -3  # how many downvotes a feature req needs to be closed automatically
+# how many upvotes a feature req needs to be added to GitHub
+GITHUB_THRESHOLD = int(os.environ.get("FR_APPROVE_THRESHOLD", 5))
+# how many downvotes a feature req needs to be closed automatically
+CLOSE_THRESHOLD = int(os.environ.get("FR_DENY_THRESHOLD", -3))
 
 # we use 0 for a sentinel value since
 # it's an invalid ID in both Discord and GitHub
