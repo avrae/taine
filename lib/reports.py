@@ -130,16 +130,15 @@ class Report:
         attachments = [Attachment("GitHub", issue['body'])]
         title = issue['title']
         id_match = re.match(r'([A-Z]{3,})(-\d+)?\s', issue['title'])
+        is_bug = 'featurereq' not in [lab['name'] for lab in issue['labels']]
         if id_match:
             identifier = id_match.group(1)
             report_num = get_next_report_num(identifier)
             report_id = f"{identifier}-{report_num}"
             title = title[len(id_match.group(0)):]
         else:
-            identifier = identifier_from_repo(repo_name)
+            identifier = identifier_from_repo(repo_name, is_bug)
             report_id = f"{identifier}-{get_next_report_num(identifier)}"
-
-        is_bug = 'featurereq' not in [lab['name'] for lab in issue['labels']]
 
         return cls("GitHub", report_id, title, -1,
                    # pri is created at -1 for unresolve (which changes it to 6)
@@ -563,8 +562,11 @@ def reports_to_issues(text):
     return re.sub(r"(\w{3,}-\d{3,})", report_sub, text)
 
 
-def identifier_from_repo(repo_name):
-    return constants.REPO_ID_MAP.get(repo_name, 'AVR')
+def identifier_from_repo(repo_name, is_bug=True):
+    default = constants.REPO_ID_MAP.get(repo_name, 'AVR')
+    if not is_bug:
+        return constants.REPO_ID_MAP.get(f"{repo_name}:feature", default)
+    return default
 
 
 class ReportException(Exception):

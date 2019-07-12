@@ -31,6 +31,7 @@ BUG_LISTEN_CHANS = [
 # what to label issues opened on given repos as
 REPO_ID_MAP = {
     "avrae/avrae": "AVR",
+    "avrae/avrae:feature": "AFR",
     "avrae/avrae.io": "WEB",
     "avrae/avrae-service": "API",
     "avrae/taine": "TNE"
