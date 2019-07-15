@@ -67,8 +67,8 @@ class Owner(commands.Cog):
         report.title = name
         if report.github_issue:
             await report.edit_title(f"{report.report_id} {report.title}")
-        report.commit()
         await report.update(ctx)
+        report.commit()
         await ctx.send(f"Renamed {report.report_id} as {report.title}.")
 
     @commands.command(aliases=['pri'])
@@ -84,9 +84,8 @@ class Owner(commands.Cog):
 
         if report.github_issue:
             await report.update_labels()
-
-        report.commit()
         await report.update(ctx)
+        report.commit()
         await ctx.send(f"Changed priority of `{report.report_id}`: {report.title} to P{pri}.")
 
     @commands.group(aliases=['pend'], invoke_without_command=True)
@@ -102,8 +101,8 @@ class Owner(commands.Cog):
                 not_found += 1
                 continue
             report.pend()
-            report.commit()
             await report.update(ctx)
+            report.commit()
         if not not_found:
             await ctx.send(f"Marked {len(reports)} reports as patch pending.")
         else:
@@ -130,8 +129,8 @@ class Owner(commands.Cog):
                 not_found += 1
                 continue
             report.unpend()
-            report.commit()
             await report.update(ctx)
+            report.commit()
         if not not_found:
             await ctx.send(f"Unpended {len(reports)} reports.")
         else:

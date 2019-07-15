@@ -97,9 +97,9 @@ async def canrepro(ctx, _id, *, msg=''):
     report = Report.from_id(_id)
     await report.canrepro(ctx.message.author.id, msg, ctx)
     report.subscribe(ctx)
+    await report.update(ctx)
     report.commit()
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-    await report.update(ctx)
 
 
 @bot.command(aliases=['up'])
@@ -108,9 +108,9 @@ async def upvote(ctx, _id, *, msg=''):
     report = Report.from_id(_id)
     await report.upvote(ctx.message.author.id, msg, ctx)
     report.subscribe(ctx)
+    await report.update(ctx)
     report.commit()
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-    await report.update(ctx)
 
 
 @bot.command(aliases=['cnr'])
@@ -119,9 +119,9 @@ async def cannotrepro(ctx, _id, *, msg=''):
     report = Report.from_id(_id)
     await report.cannotrepro(ctx.message.author.id, msg, ctx)
     report.subscribe(ctx)
+    await report.update(ctx)
     report.commit()
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-    await report.update(ctx)
 
 
 @bot.command(aliases=['down'])
@@ -130,9 +130,9 @@ async def downvote(ctx, _id, *, msg=''):
     report = Report.from_id(_id)
     await report.downvote(ctx.message.author.id, msg, ctx)
     report.subscribe(ctx)
+    await report.update(ctx)
     report.commit()
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-    await report.update(ctx)
 
 
 @bot.command()
@@ -141,9 +141,9 @@ async def note(ctx, _id, *, msg=''):
     report = Report.from_id(_id)
     await report.addnote(ctx.message.author.id, msg, ctx)
     report.subscribe(ctx)
+    await report.update(ctx)
     report.commit()
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-    await report.update(ctx)
 
 
 @bot.command(aliases=['sub'])

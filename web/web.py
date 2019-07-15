@@ -132,8 +132,8 @@ class Web(commands.Cog):
                     break
             report.severity = priority
             report.is_bug = FEATURE_LABEL not in label_names
-            report.commit()
             await report.update(ctx)
+            report.commit()
 
     # ===== github: issue_comment event =====
     async def issue_comment_handler(self, data):
@@ -154,8 +154,8 @@ class Web(commands.Cog):
                 return  # oh well
 
             await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), add_to_github=False)
-            report.commit()
             await report.update(ContextProxy(self.bot))
+            report.commit()
 
     def run_app(self, app, *, host='0.0.0.0', port=None, ssl_context=None, backlog=128):
         """Run an app"""
