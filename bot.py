@@ -12,7 +12,7 @@ from discord.ext.commands import CommandNotFound
 import constants
 from lib import db
 from lib.github import GitHubClient
-from lib.reports import Attachment, Report, get_next_report_num
+from lib.reports import Attachment, Report, ReportException, get_next_report_num
 
 
 class Taine(commands.AutoShardedBot):
@@ -53,7 +53,8 @@ async def on_command_error(ctx, error):
         return
 
     # send error to sentry.io
-    bot.log_exception(error)
+    if not isinstance(error, ReportException):
+        bot.log_exception(error)
 
     await ctx.message.channel.send(f"Error: {error}")
     traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
