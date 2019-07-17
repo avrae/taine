@@ -4,6 +4,7 @@ import re
 import sys
 import traceback
 
+import sentry_sdk
 from boto3.dynamodb.conditions import Attr
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
@@ -11,12 +12,20 @@ from discord.ext.commands import CommandNotFound
 import constants
 from lib import db
 from lib.github import GitHubClient
-from lib.reports import Attachment, Report, get_next_report_num
+from lib.reports import Attachment, Report, ReportException, get_next_report_num
 
 
 class Taine(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super(Taine, self).__init__(*args, **kwargs)
+
+        if SENTRY_DSN is not None:
+            sentry_sdk.init(dsn=SENTRY_DSN, environment="Production")
+
+    @staticmethod
+    def log_exception(exception=None):
+        if SENTRY_DSN is not None:
+            sentry_sdk.capture_exception(exception)
 
 
 bot = Taine(command_prefix="~")
@@ -24,6 +33,7 @@ bot = Taine(command_prefix="~")
 ORG_NAME = os.environ.get("ORG_NAME", "avrae")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+SENTRY_DSN = os.getenv('SENTRY_DSN') or None
 
 EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl")
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
@@ -42,6 +52,11 @@ async def on_ready():
 async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
         return
+
+    # send error to sentry.io
+    if not isinstance(error, ReportException):
+        bot.log_exception(error)
+
     await ctx.message.channel.send(f"Error: {error}")
     traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
