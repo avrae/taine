@@ -14,6 +14,11 @@ from lib import db
 from lib.github import GitHubClient
 from lib.reports import Attachment, Report, ReportException, get_next_report_num
 
+ORG_NAME = os.environ.get("ORG_NAME", "avrae")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+SENTRY_DSN = os.getenv('SENTRY_DSN') or None
+
 
 class Taine(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
@@ -29,11 +34,6 @@ class Taine(commands.AutoShardedBot):
 
 
 bot = Taine(command_prefix="~")
-
-ORG_NAME = os.environ.get("ORG_NAME", "avrae")
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-SENTRY_DSN = os.getenv('SENTRY_DSN') or None
 
 EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl")
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
