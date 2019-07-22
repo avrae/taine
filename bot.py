@@ -7,7 +7,7 @@ import traceback
 import sentry_sdk
 from boto3.dynamodb.conditions import Attr
 from discord.ext import commands
-from discord.ext.commands import CommandNotFound
+from discord.ext.commands import CommandInvokeError, CommandNotFound
 
 import constants
 from lib import db
@@ -52,6 +52,9 @@ async def on_ready():
 async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
         return
+
+    if isinstance(error, CommandInvokeError):
+        error = error.original
 
     # send error to sentry.io
     if not isinstance(error, ReportException):
