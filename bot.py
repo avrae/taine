@@ -4,6 +4,8 @@ import re
 import sys
 import traceback
 
+import lib.newrelic_hooks  # this hooks a lot of weird things and needs to be imported early
+
 import sentry_sdk
 from boto3.dynamodb.conditions import Attr
 from discord.ext import commands
