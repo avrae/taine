@@ -9,6 +9,9 @@ application = newrelic.agent.application()
 
 
 def hook_all():
+    if os.getenv('NEW_RELIC_LICENSE_KEY') is None:
+        return
+
     hook_discord()
 
 
@@ -21,7 +24,3 @@ def hook_discord():
 
     commands.Command._invoke = commands.Command.invoke
     commands.Command.invoke = _command_invoke
-
-
-if os.getenv('NEW_RELIC_LICENSE_KEY') is not None:
-    hook_all()
