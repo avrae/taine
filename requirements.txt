@@ -20,6 +20,7 @@ idna-ssl==1.1.0
 jmespath==0.9.4
 more-itertools==4.2.0
 multidict==4.3.1
+newrelic==4.20.1.121
 pluggy==0.6.0
 py==1.5.4
 PyGithub==1.43.7

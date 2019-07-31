@@ -40,10 +40,15 @@ Other configuration is via `constants.py`:
 All constants must be unique.
 
 ### Optional
+
 These environment variables are optional:
 
 - `FR_APPROVE_THRESHOLD` (default 5) - The minimum score for feature requests to be added to GitHub.
 - `FR_DENY_THRESHOLD` (default -3) - The score for feature requests to be automatically closed if they fall under it.
+- `NEW_RELIC_CONFIG_FILE` - Set to `newrelic.ini`.
+- `NEW_RELIC_ENVIRONMENT` - Set to `development`, `staging`, or `production`.
+- `NEW_RELIC_LICENSE_KEY` - License key for [New Relic](https://newrelic.com/).
+- `SENTRY_DSN` - DSN for [Sentry](https://sentry.io/welcome/).
 
 ## Running the bot
 
