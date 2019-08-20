@@ -11,7 +11,7 @@ newrelic_hooks.hook_all()
 import sentry_sdk
 from boto3.dynamodb.conditions import Attr
 from discord.ext import commands
-from discord.ext.commands import CommandInvokeError, CommandNotFound
+from discord.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
 
 import constants
 from lib import db
@@ -61,7 +61,7 @@ async def on_command_error(ctx, error):
         error = error.original
 
     # send error to sentry.io
-    if not isinstance(error, ReportException):
+    if not isinstance(error, (ReportException, UserInputError, CheckFailure)):
         bot.log_exception(error)
 
     await ctx.message.channel.send(f"Error: {error}")
