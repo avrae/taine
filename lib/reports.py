@@ -384,7 +384,6 @@ class Report:
         await self.setup_github(ctx)
 
     async def force_deny(self, ctx):
-        self.severity = -1
         await self.resolve(ctx, "This report was denied.", author=constants.OWNER_ID)
 
     def subscribe(self, ctx):
@@ -427,7 +426,7 @@ class Report:
         msg = await self.get_message(ctx)
         if msg is None and self.is_open():
             await self.setup_message(ctx.bot)
-        else:
+        elif self.is_open():
             await msg.edit(embed=self.get_embed())
 
     async def resolve(self, ctx, msg='', close_github_issue=True, pend=False, ignore_closed=False, author=None):
