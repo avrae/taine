@@ -8,6 +8,7 @@ import constants
 from lib import db
 from lib.db import query
 from lib.reports import Report, ReportException, get_next_report_num
+from utils import DiscordEmbedTextPaginator
 
 
 class Owner(commands.Cog):
@@ -141,7 +142,7 @@ class Owner(commands.Cog):
         """Owner only - To be run after an update. Resolves all -P2 reports."""
         if not ctx.message.author.id == constants.OWNER_ID:
             return
-        changelog = ""
+        changelog = DiscordEmbedTextPaginator()
 
         async for report_data in query(db.reports, Attr("pending").eq(True)):  # find all pending=True reports
             report = Report.from_dict(report_data)
@@ -153,13 +154,16 @@ class Owner(commands.Cog):
             if not report.is_bug:
                 action = "Added"
             if report.get_issue_link():
-                changelog += f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}\n"
+                changelog.add(f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}")
             else:
-                changelog += f"- {action} `{report.report_id}` {report.title}\n"
+                changelog.add(f"- {action} `{report.report_id}` {report.title}")
 
-        changelog += msg
+        changelog.add(msg)
 
-        await ctx.send(embed=discord.Embed(title=f"**Build {build_id}**", description=changelog, colour=0x87d37c))
+        embed = discord.Embed(title=f"**Build {build_id}**", colour=0x87d37c)
+        changelog.write_to(embed)
+
+        await ctx.send(embed=embed)
         await ctx.message.delete()
 
 
