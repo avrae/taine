@@ -321,7 +321,7 @@ class Report:
         if not attachment.message:
             return f"{VERI_KEY.get(attachment.veri, '')} - {username}"
         msg = f"{VERI_KEY.get(attachment.veri, '')} - {username}\n\n" \
-            f"{reports_to_issues(attachment.message)}"
+              f"{reports_to_issues(attachment.message)}"
         return msg
 
     async def canrepro(self, author, msg, ctx):
@@ -371,8 +371,9 @@ class Report:
             await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
         if self.upvotes - self.downvotes in (14, 9):
             await self.update_labels()
-        if self.upvotes - self.downvotes <= CLOSE_THRESHOLD:
-            await self.resolve(ctx, f"This report was closed because it fell below a score of {CLOSE_THRESHOLD}.")
+        elif self.upvotes - self.downvotes <= CLOSE_THRESHOLD:
+            await self.resolve(ctx, f"This report was closed because it fell below a score of {CLOSE_THRESHOLD}.",
+                               author=constants.OWNER_ID)
 
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = Attachment(author, msg)
@@ -385,19 +386,7 @@ class Report:
     async def force_deny(self, ctx):
         self.severity = -1
         await self.notify_subscribers(ctx, f"Report closed.")
-        await self.addnote(constants.OWNER_ID, f"Resolved - This report was denied.", ctx)
-
-        msg_ = await self.get_message(ctx)
-        if msg_:
-            try:
-                await msg_.delete()
-                if self.message in Report.message_cache:
-                    del Report.message_cache[self.message]
-            finally:
-                self.message = MESSAGE_SENTINEL
-
-        if self.github_issue:
-            await GitHubClient.get_instance().close_issue(self.repo, self.github_issue)
+        await self.resolve(ctx, f"Resolved - This report was denied.", author=constants.OWNER_ID)
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
@@ -442,7 +431,7 @@ class Report:
         else:
             await msg.edit(embed=self.get_embed())
 
-    async def resolve(self, ctx, msg='', close_github_issue=True, pend=False, ignore_closed=False):
+    async def resolve(self, ctx, msg='', close_github_issue=True, pend=False, ignore_closed=False, author=None):
         if self.severity == -1 and not ignore_closed:
             raise ReportException("This report is already closed.")
 
@@ -452,7 +441,7 @@ class Report:
         else:
             await self.notify_subscribers(ctx, f"Report closed.")
         if msg:
-            await self.addnote(ctx.message.author.id, f"Resolved - {msg}", ctx)
+            await self.addnote(author or ctx.author.id, f"Resolved - {msg}", ctx)
 
         await self.delete_message(ctx)
 
