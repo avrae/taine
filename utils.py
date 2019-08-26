@@ -7,15 +7,13 @@ class DiscordEmbedTextPaginator:
         self._last_text = ""
 
     def add(self, text: str):
-        if len(self.texts) == 0 and len(text) > self.DESC_MAX:
-            raise ValueError("Text is too long to fit.")
-        elif len(text) > self.FIELD_MAX:
-            raise ValueError("Text is too long to fit.")
-
         if len(self.texts) == 0:
             _max = self.DESC_MAX
         else:
             _max = self.FIELD_MAX
+
+        if len(text) > _max:
+            raise ValueError("Text is too long to fit.")
 
         if len(text) + len(self._last_text) > _max:
             self.texts.append(self._last_text.strip())
