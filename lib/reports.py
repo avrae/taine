@@ -385,8 +385,7 @@ class Report:
 
     async def force_deny(self, ctx):
         self.severity = -1
-        await self.notify_subscribers(ctx, f"Report closed.")
-        await self.resolve(ctx, f"Resolved - This report was denied.", author=constants.OWNER_ID)
+        await self.resolve(ctx, "This report was denied.", author=constants.OWNER_ID)
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
