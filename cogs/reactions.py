@@ -5,9 +5,12 @@ import constants
 from lib.misc import ContextProxy
 from lib.reports import DOWNVOTE_REACTION, Report, ReportException, UPVOTE_REACTION
 
-BUG_HUNTER_MSG_ID = 590642451266535461
+README_MSG_ID = 590642451266535461
 BUG_HUNTER_REACTION_ID = 454031039375867925
 BUG_HUNTER_ROLE_ID = 469137394742853642
+ACCEPT_REACTION_ID = 434140566834511872
+ACCEPT_ROLE_ID = 641756218955792394
+NO_REPORTS_ROLE_ID = 513457946366312478
 
 
 class Reactions(commands.Cog):
@@ -27,8 +30,11 @@ class Reactions(commands.Cog):
         await self.handle_reaction(msg_id, member, emoji)
 
     async def handle_reaction(self, msg_id, member, emoji):
-        if msg_id == BUG_HUNTER_MSG_ID and emoji.id == BUG_HUNTER_REACTION_ID:
-            return await self.handle_bug_hunter(member)
+        if msg_id == README_MSG_ID:
+            if emoji.id == BUG_HUNTER_REACTION_ID:
+                return await self.toggle_role(member, id=BUG_HUNTER_ROLE_ID)
+            elif emoji.id == ACCEPT_REACTION_ID:
+                return await self.toggle_role(member, id=ACCEPT_ROLE_ID)
 
         if emoji.name not in (UPVOTE_REACTION, DOWNVOTE_REACTION):
             return
@@ -64,12 +70,17 @@ class Reactions(commands.Cog):
         report.commit()
         await report.update(ContextProxy(self.bot))
 
-    async def handle_bug_hunter(self, member):
-        role = discord.utils.get(member.guild.roles, id=BUG_HUNTER_ROLE_ID)
+    @staticmethod
+    async def toggle_role(member, **kwargs):
+        if NO_REPORTS_ROLE_ID in [r.id for r in member.roles]:  # this member is not allowed to self-assign
+            return
+        role = discord.utils.get(member.guild.roles, **kwargs)
         if role in member.roles:
             await member.remove_roles(role)
+            await member.send(f"Okay! You no longer have {role.name}.")
         else:
             await member.add_roles(role)
+            await member.send(f"Okay! You now have {role.name}.")
 
 
 def setup(bot):
