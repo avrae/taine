@@ -94,8 +94,8 @@ async def on_message(message):
         title = match.group(1).strip(" *.\n")
         report_num = get_next_report_num(identifier)
         report_id = f"{identifier}-{report_num}"
-        attach = "\n" + '\n'.join(f"\n{'!' if item.url.endswith(('.png', '.jpg', '.gif')) else ''}[{item.filename}]({item.url})"
-                                  for item in message.attachments)
+        attach = "\n" + '\n'.join(f"\n{'!' if item.url.lower().endswith(('.png', '.jpg', '.gif')) else ''}"
+                                  f"[{item.filename}]({item.url})" for item in message.attachments)
 
         report = await Report.new(message.author.id, report_id, title,
                                   [Attachment(message.author.id, message.content + attach)], is_bug=is_bug, repo=repo)
