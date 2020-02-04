@@ -153,8 +153,8 @@ class Owner(commands.Cog):
             action = "Fixed"
             if not report.is_bug:
                 action = "Added"
-            if report.get_issue_link():
-                changelog.add(f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}")
+            if link := report.get_issue_link():
+                changelog.add(f"- {action} [`{report.report_id}`]({link}) {report.title}")
             else:
                 changelog.add(f"- {action} `{report.report_id}` {report.title}")
 
