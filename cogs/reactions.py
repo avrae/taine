@@ -3,7 +3,7 @@ from discord.ext import commands
 
 import constants
 from lib.misc import ContextProxy
-from lib.reports import DOWNVOTE_REACTION, Report, ReportException, UPVOTE_REACTION
+from lib.reports import DOWNVOTE_REACTION, INFO_REACTION, Report, ReportException, UPVOTE_REACTION
 
 README_MSG_ID = 590642451266535461
 BUG_HUNTER_REACTION_ID = 454031039375867925
@@ -49,22 +49,26 @@ class Reactions(commands.Cog):
         if member.bot:
             return
 
-        if member.id == constants.OWNER_ID:
+        try:
             if emoji.name == UPVOTE_REACTION:
-                await report.force_accept(ContextProxy(self.bot))
-            else:
-                print(f"Force denying {report.title}")
-                await report.force_deny(ContextProxy(self.bot))
-                report.commit()
-                return
-        else:
-            try:
-                if emoji.name == UPVOTE_REACTION:
+                if member.id == constants.OWNER_ID:
+                    await report.force_accept(ContextProxy(self.bot))
+                else:
                     await report.upvote(member.id, '', ContextProxy(self.bot))
+            elif emoji.name == DOWNVOTE_REACTION:
+                if member.id == constants.OWNER_ID:
+                    print(f"Force denying {report.title}")
+                    await report.force_deny(ContextProxy(self.bot))
+                    report.commit()
+                    return
                 else:
                     await report.downvote(member.id, '', ContextProxy(self.bot))
-            except ReportException as e:
-                await member.send(str(e))
+            elif emoji.name == INFO_REACTION:
+                await member.send(embed=report.get_embed(True, ContextProxy(self.bot, guild=member.guild)))
+                return
+        except ReportException as e:
+            await member.send(str(e))
+
         if member.id not in report.subscribers:
             report.subscribers.append(member.id)
         report.commit()
