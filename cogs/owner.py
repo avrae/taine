@@ -146,15 +146,15 @@ class Owner(commands.Cog):
 
         async for report_data in query(db.reports, Attr("pending").eq(True)):  # find all pending=True reports
             report = Report.from_dict(report_data)
-            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
+            await report.resolve(ctx, ignore_closed=True)
             report.pending = False
             report.commit()
 
             action = "Fixed"
             if not report.is_bug:
                 action = "Added"
-            if report.get_issue_link():
-                changelog.add(f"- {action} [`{report.report_id}`]({report.get_issue_link()}) {report.title}")
+            if link := report.get_issue_link():
+                changelog.add(f"- {action} [`{report.report_id}`]({link}) {report.title}")
             else:
                 changelog.add(f"- {action} `{report.report_id}` {report.title}")
 
