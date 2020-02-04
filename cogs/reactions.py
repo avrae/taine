@@ -36,7 +36,7 @@ class Reactions(commands.Cog):
             elif emoji.id == ACCEPT_REACTION_ID:
                 return await self.toggle_role(member, id=ACCEPT_ROLE_ID)
 
-        if emoji.name not in (UPVOTE_REACTION, DOWNVOTE_REACTION):
+        if emoji.name not in (UPVOTE_REACTION, DOWNVOTE_REACTION, INFO_REACTION):
             return
 
         try:
