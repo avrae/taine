@@ -146,7 +146,7 @@ class Owner(commands.Cog):
 
         async for report_data in query(db.reports, Attr("pending").eq(True)):  # find all pending=True reports
             report = Report.from_dict(report_data)
-            await report.resolve(ctx, ignore_closed=True)
+            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
             report.pending = False
             report.commit()
 
