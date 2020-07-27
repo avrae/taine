@@ -509,11 +509,15 @@ class Report:
         await GitHubClient.get_instance().rename_issue(self.repo, self.github_issue, new_title)
 
     async def notify_subscribers(self, ctx, msg):
-        msg = f"`{self.report_id}` - {self.title}: {msg}"
+        embed = discord.Embed(
+            title=f"`{self.report_id}` - {self.title}",
+            description=msg
+        )
+        embed.set_footer(text=f"Reply with `~note {self.report_id} ...`")
         for sub in self.subscribers:
             try:
                 member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
-                await member.send(msg)
+                await member.send(embed=embed)
             except (StopIteration, discord.HTTPException):
                 continue
 
