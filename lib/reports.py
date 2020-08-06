@@ -513,7 +513,8 @@ class Report:
             title=f"`{self.report_id}` - {self.title}",
             description=msg
         )
-        embed.set_footer(text=f"Reply with `~note {self.report_id} ...`")
+        embed.set_footer(text=f'Add a comment with "~note {self.report_id} ..." '
+                              f'or view notes with "~report {self.report_id}"')
         for sub in self.subscribers:
             try:
                 member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
