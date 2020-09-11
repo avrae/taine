@@ -54,7 +54,7 @@ class Owner(commands.Cog):
         new_report.message = msg.id
         if new_report.github_issue:
             await new_report.update_labels()
-            await new_report.edit_title(f"{new_report.report_id} {new_report.title}")
+            await new_report.edit_title(new_report.title)
         new_report.commit()
         await ctx.send(f"Reassigned {report.report_id} as {new_report.report_id}.")
 
@@ -65,9 +65,8 @@ class Owner(commands.Cog):
             return
 
         report = Report.from_id(report_id)
-        report.title = name
         if report.github_issue:
-            await report.edit_title(f"{report.report_id} {report.title}")
+            await report.edit_title(report.title)
         await report.update(ctx)
         report.commit()
         await ctx.send(f"Renamed {report.report_id} as {report.title}.")
