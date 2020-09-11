@@ -23,6 +23,11 @@ VALID_LABELS = (
     'P0: Critical', 'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial', 'stale',
     '+10', '+15'
 )
+MANAGED_LABELS = (
+    'bug', 'featurereq',
+    'P0: Critical', 'P1: Very High', 'P2: High', 'P3: Medium', 'P4: Low', 'P5: Trivial',
+    '+10', '+15'
+)
 VERI_EMOJI = {
     -2: "\u2b07",  # DOWNVOTE
     -1: "\u274c",  # CROSS MARK
@@ -455,7 +460,7 @@ class Report:
                     extra_labels.add(label)
             if extra_labels:
                 await GitHubClient.get_instance().label_issue(self.repo, self.github_issue,
-                                                              self.get_labels() + list(extra_labels))
+                                                              (await self.get_labels()) + list(extra_labels))
             await GitHubClient.get_instance().close_issue(self.repo, self.github_issue)
 
         if pend:
@@ -488,8 +493,10 @@ class Report:
     def unpend(self):
         self.pending = False
 
-    def get_labels(self):
-        labels = [PRIORITY_LABELS.get(self.severity)]
+    async def get_labels(self):
+        labels = await GitHubClient.get_instance().get_issue_labels(self.repo, self.github_issue)
+        labels = [l for l in labels if l not in MANAGED_LABELS]
+        labels.append(PRIORITY_LABELS.get(self.severity))
         if self.is_bug:
             labels.append("bug")
         else:
@@ -501,12 +508,12 @@ class Report:
         return [l for l in labels if l]
 
     async def update_labels(self):
-        labels = self.get_labels()
+        labels = await self.get_labels()
         await GitHubClient.get_instance().label_issue(self.repo, self.github_issue, labels)
 
     async def edit_title(self, new_title):
         self.title = new_title
-        await GitHubClient.get_instance().rename_issue(self.repo, self.github_issue, new_title)
+        await GitHubClient.get_instance().rename_issue(self.repo, self.github_issue, f"{self.report_id} {self.title}")
 
     async def notify_subscribers(self, ctx, msg):
         embed = discord.Embed(

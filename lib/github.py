@@ -73,6 +73,17 @@ class GitHubClient:
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
+    async def get_issue_labels(self, repo, issue_num):
+        """Gets a list of issue label names."""
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
+        def _():
+            issue = repo.get_issue(issue_num)
+            return [lab.name for lab in issue.labels]
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
+
     async def close_issue(self, repo, issue_num, comment=None):
         if not isinstance(repo, Repository):
             repo = self.get_repo(repo)
