@@ -112,10 +112,11 @@ class Owner(commands.Cog):
     async def pending_list(self, ctx):
         out = []
         async for report_data in query(db.reports, Attr("pending").eq(True)):
-            out.append(Report.from_dict(report_data).report_id)
+            out.append(Report.from_dict(report_data))
 
-        out = ', '.join(f"`{_id}`" for _id in out)
-        await ctx.send(f"Pending reports: {out}")
+        out_list = ', '.join(f"`{report.report_id}`" for report in out)
+        detailed = '\n'.join(f"`{report.report_id}`: {report.title}" for report in out)
+        await ctx.send(f"Pending reports: {out_list}\n{detailed}")
 
     @commands.command()
     async def unpend(self, ctx, *reports):
@@ -136,18 +137,14 @@ class Owner(commands.Cog):
         else:
             await ctx.send(f"Unpended {len(reports) - not_found} reports. {not_found} reports were not found.")
 
-    @commands.command(aliases=['release'])
-    async def update(self, ctx, build_id, *, msg=""):
-        """Owner only - To be run after an update. Resolves all -P2 reports."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
+    async def _generate_changelog(self, build_id, msg, coro_for_each=None):
+        """Generates a changelog, optionally running a coro for each report with the report as the sole arg."""
         changelog = DiscordEmbedTextPaginator()
 
         async for report_data in query(db.reports, Attr("pending").eq(True)):  # find all pending=True reports
             report = Report.from_dict(report_data)
-            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
-            report.pending = False
-            report.commit()
+            if coro_for_each:
+                await coro_for_each(report)
 
             action = "Fixed"
             if not report.is_bug:
@@ -162,8 +159,28 @@ class Owner(commands.Cog):
         embed = discord.Embed(title=f"**Build {build_id}**", colour=0x87d37c)
         changelog.write_to(embed)
 
+    @commands.command(aliases=['release'])
+    async def update(self, ctx, build_id, *, msg=""):
+        """Owner only - To be run after an update. Resolves all -P2 reports."""
+        if not ctx.message.author.id == constants.OWNER_ID:
+            return
+
+        async def resolver(report):
+            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
+            report.pending = False
+            report.commit()
+
+        embed = await self._generate_changelog(build_id, msg, resolver)
         await ctx.send(embed=embed)
         await ctx.message.delete()
+
+    @commands.command()
+    async def dryrun(self, ctx, build_id, *, msg=""):
+        """Owner only - changelog dryrun."""
+        if not ctx.message.author.id == constants.OWNER_ID:
+            return
+        embed = await self._generate_changelog(build_id, msg)
+        await ctx.send(embed=embed)
 
 
 def setup(bot):
