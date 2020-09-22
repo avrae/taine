@@ -158,6 +158,7 @@ class Owner(commands.Cog):
 
         embed = discord.Embed(title=f"**Build {build_id}**", colour=0x87d37c)
         changelog.write_to(embed)
+        return embed
 
     @commands.command(aliases=['release'])
     async def update(self, ctx, build_id, *, msg=""):
