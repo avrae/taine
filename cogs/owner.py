@@ -66,7 +66,9 @@ class Owner(commands.Cog):
 
         report = Report.from_id(report_id)
         if report.github_issue:
-            await report.edit_title(report.title)
+            await report.edit_title(name)
+        else:
+            report.title = name
         await report.update(ctx)
         report.commit()
         await ctx.send(f"Renamed {report.report_id} as {report.title}.")
