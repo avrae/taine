@@ -10,6 +10,7 @@ newrelic_hooks.hook_all()
 
 import sentry_sdk
 from boto3.dynamodb.conditions import Attr
+from discord import Intents
 from discord.ext import commands
 from discord.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
 
@@ -37,7 +38,8 @@ class Taine(commands.AutoShardedBot):
             sentry_sdk.capture_exception(exception)
 
 
-bot = Taine(command_prefix="~")
+intents = Intents.default()
+bot = Taine(command_prefix="~", intents=intents)
 
 EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl", "cogs.inline")
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
