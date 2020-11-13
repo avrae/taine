@@ -39,7 +39,7 @@ class Taine(commands.AutoShardedBot):
 
 bot = Taine(command_prefix="~")
 
-EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl")
+EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl", "cogs.inline")
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s*(.+?)(\n|$)")
 
