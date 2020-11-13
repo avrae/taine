@@ -218,7 +218,7 @@ async def unsuball(ctx):
 
 
 @bot.command()
-async def search(ctx, q):
+async def search(ctx, *, q):
     """Searches for a report."""
     to_search = []
     async for report_data in query(db.reports):

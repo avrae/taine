@@ -31,27 +31,22 @@ def search(list_to_search: list, value, key, cutoff=5, return_key=False, strict=
     # full match, return result
     exact_matches = [a for a in list_to_search if value.lower() == key(a).lower()]
     if not (exact_matches or strict):
-        partial_matches = [a for a in list_to_search if value.lower() in key(a).lower()]
-        if len(partial_matches) > 1 or not partial_matches:
-            names = [key(d).lower() for d in list_to_search]
-            fuzzy_map = {key(d).lower(): d for d in list_to_search}
-            fuzzy_results = [r for r in process.extract(value.lower(), names, scorer=fuzz.ratio) if r[1] >= cutoff]
-            fuzzy_sum = sum(r[1] for r in fuzzy_results)
-            fuzzy_matches_and_confidences = [(fuzzy_map[r[0]], r[1] / fuzzy_sum) for r in fuzzy_results]
+        names = [key(d).lower() for d in list_to_search]
+        fuzzy_map = {key(d).lower(): d for d in list_to_search}
+        fuzzy_results = [r for r in process.extract(value.lower(), names, scorer=fuzz.partial_ratio) if r[1] >= cutoff]
+        fuzzy_sum = sum(r[1] for r in fuzzy_results)
+        fuzzy_matches_and_confidences = [(fuzzy_map[r[0]], r[1] / fuzzy_sum) for r in fuzzy_results]
 
-            # display the results in order of confidence
-            weighted_results = []
-            weighted_results.extend((match, confidence) for match, confidence in fuzzy_matches_and_confidences)
-            weighted_results.extend((match, len(value) / len(key(match))) for match in partial_matches)
-            sorted_weighted = sorted(weighted_results, key=lambda e: e[1], reverse=True)
+        # display the results in order of confidence
+        weighted_results = []
+        weighted_results.extend((match, confidence) for match, confidence in fuzzy_matches_and_confidences)
+        sorted_weighted = sorted(weighted_results, key=lambda e: e[1], reverse=True)
 
-            # build results list, unique
-            results = []
-            for r in sorted_weighted:
-                if r[0] not in results:
-                    results.append(r[0])
-        else:
-            results = partial_matches
+        # build results list, unique
+        results = []
+        for r in sorted_weighted:
+            if r[0] not in results:
+                results.append(r[0])
     else:
         results = exact_matches
 
