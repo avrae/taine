@@ -16,7 +16,9 @@ from discord.ext.commands import CheckFailure, CommandInvokeError, CommandNotFou
 
 import constants
 from lib import db
+from lib.db import query
 from lib.github import GitHubClient
+from lib.misc import search_and_select
 from lib.reports import Attachment, Report, ReportException, get_next_report_num
 
 ORG_NAME = os.environ.get("ORG_NAME", "avrae")
@@ -38,7 +40,7 @@ class Taine(commands.AutoShardedBot):
             sentry_sdk.capture_exception(exception)
 
 
-intents = Intents.default()
+intents = Intents.all()
 bot = Taine(command_prefix="~", intents=intents)
 
 EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl", "cogs.inline")
@@ -213,6 +215,18 @@ async def unsuball(ctx):
             )
 
     await ctx.send(f"OK, unsubscribed from {num_unsubbed} reports.")
+
+
+@bot.command()
+async def search(ctx, q):
+    """Searches for a report."""
+    to_search = []
+    async for report_data in query(db.reports):
+        to_search.append(Report.from_dict(report_data))
+    result = await search_and_select(ctx, to_search, q, key=lambda report: report.title)
+    if result is None:
+        return await ctx.send("Report not found.")
+    await ctx.send(embed=result.get_embed(detailed=True, ctx=ctx))
 
 
 if __name__ == '__main__':

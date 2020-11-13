@@ -10,17 +10,20 @@ reports = dynamo.Table('taine.reports')
 reportnums = dynamo.Table('taine.reportnums')
 
 
-async def query(table, filter_exp):
+async def query(table, filter_exp=None):
+    the_filter = {}
+    if filter_exp is not None:
+        the_filter = dict(FilterExpression=filter_exp)
     sentinel = lek = object()
     while lek is not None:
         if lek is sentinel:
             response = table.scan(
-                FilterExpression=filter_exp,
+                **the_filter
             )
         else:
             response = table.scan(
-                FilterExpression=filter_exp,
-                ExclusiveStartKey=lek
+                ExclusiveStartKey=lek,
+                **the_filter
             )
 
         lek = response.get('LastEvaluatedKey')

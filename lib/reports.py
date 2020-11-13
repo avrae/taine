@@ -265,7 +265,7 @@ class Report:
                 else:
                     msg = "No details."
                 embed.add_field(name=f"{VERI_EMOJI.get(attachment.veri, '')} {user}",
-                                value=msg)
+                                value=msg, inline=len(attachment.message or '') < 256)
 
         return embed
 
