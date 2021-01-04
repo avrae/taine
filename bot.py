@@ -239,21 +239,28 @@ async def top(ctx, n: int = 10):
 
     embed = discord.Embed()
     embed.title = f"Top {n} Open Feature Requests"
+    embed.description = "Click a report to jump to its tracker message."
+
     reports = []
     async for fr_data in query(db.reports, Attr("is_bug").eq(False) and Attr("severity").gte(0)):
         reports.append(Report.from_dict(fr_data))
     sorted_reports = sorted(reports, key=lambda r: r.score, reverse=True)[:n]
-    sorted_reports_strs = []
+    last_field = []
 
     for report in sorted_reports:
         message = await report.get_message(ctx)
         if message is not None:
-            sorted_reports_strs.append(f"`{report.score:+}` [`{report.report_id}` {report.title}]({message.jump_url})")
+            report_str = f"`{report.score:+}` [`{report.report_id}` {report.title}]({message.jump_url})"
         else:
-            sorted_reports_strs.append(f"`{report.score:+}` `{report.report_id}` {report.title}")
+            report_str = f"`{report.score:+}` `{report.report_id}` {report.title}"
 
-    reports_str = '\n'.join(sorted_reports_strs)
-    embed.description = f"Click a report to jump to its tracker message.\n\n{reports_str}"
+        if len(report_str) + sum(len(s) + 1 for s in last_field) > 1024:
+            embed.add_field(name='** **', value='\n'.join(last_field), inline=False)
+            last_field = [report_str]
+        else:
+            last_field.append(report_str)
+    embed.add_field(name='** **', value='\n'.join(last_field), inline=False)
+
     await ctx.send(embed=embed)
 
 
