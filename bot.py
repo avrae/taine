@@ -229,6 +229,34 @@ async def search(ctx, *, q):
     await ctx.send(embed=result.get_embed(detailed=True, ctx=ctx))
 
 
+@bot.command()
+async def top(ctx, n: int = 10):
+    """Searches for the top feature requests."""
+    if n < 1 or n > 20:
+        return await ctx.send("Invalid number.")
+
+    await ctx.trigger_typing()
+
+    embed = discord.Embed()
+    embed.title = f"Top {n} Open Feature Requests"
+    reports = []
+    async for fr_data in query(db.reports, Attr("is_bug").eq(False) and Attr("severity").gte(0)):
+        reports.append(Report.from_dict(fr_data))
+    sorted_reports = sorted(reports, key=lambda r: r.score, reverse=True)[:n]
+    sorted_reports_strs = []
+
+    for report in sorted_reports:
+        message = await report.get_message(ctx)
+        if message is not None:
+            sorted_reports_strs.append(f"`{report.score:+}` [`{report.report_id}` {report.title}]({message.jump_url})")
+        else:
+            sorted_reports_strs.append(f"`{report.score:+}` `{report.report_id}` {report.title}")
+
+    reports_str = '\n'.join(sorted_reports_strs)
+    embed.description = f"Click a report to jump to its tracker message.\n\n{reports_str}"
+    await ctx.send(embed=embed)
+
+
 if __name__ == '__main__':
     if not (DISCORD_TOKEN and GITHUB_TOKEN):
         print("Discord/Github configuration not set")
