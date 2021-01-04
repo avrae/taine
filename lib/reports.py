@@ -199,6 +199,10 @@ class Report:
     def is_open(self):
         return self.severity >= 0
 
+    @property
+    def score(self):
+        return self.upvotes - self.downvotes
+
     async def setup_github(self, ctx):
         if self.github_issue:
             raise ReportException("Issue is already on GitHub.")
@@ -235,10 +239,7 @@ class Report:
         if not self.is_bug:
             embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
-            vote_msg = "Vote by reacting"
-            if not self.github_issue:
-                vote_msg += f" | {GITHUB_THRESHOLD} upvotes required to track"
-            embed.set_footer(text=f"~report {self.report_id} for details | {vote_msg}")
+            embed.set_footer(text=f"~report {self.report_id} for details | Vote by reacting")
         else:
             embed.colour = 0xff0000
             embed.add_field(name="Verification", value=str(self.verification))
@@ -351,10 +352,6 @@ class Report:
         await self.add_attachment(ctx, attachment)
         if msg:
             await self.notify_subscribers(ctx, f"New Upvote by <@{author}>: {msg}")
-        if self.is_open() and not self.github_issue and self.upvotes - self.downvotes >= GITHUB_THRESHOLD:
-            await self.setup_github(ctx)
-        if self.upvotes - self.downvotes in (15, 10):
-            await self.update_labels()
 
     async def cannotrepro(self, author, msg, ctx):
         if [a for a in self.attachments if a.author == author and a.veri]:
@@ -376,11 +373,6 @@ class Report:
         await self.add_attachment(ctx, attachment)
         if msg:
             await self.notify_subscribers(ctx, f"New downvote by <@{author}>: {msg}")
-        if self.upvotes - self.downvotes in (14, 9):
-            await self.update_labels()
-        elif self.upvotes - self.downvotes <= CLOSE_THRESHOLD:
-            await self.resolve(ctx, f"This report was closed because it fell below a score of {CLOSE_THRESHOLD}.",
-                               author=constants.OWNER_ID)
 
     async def addnote(self, author, msg, ctx, add_to_github=True):
         attachment = Attachment(author, msg)
@@ -391,7 +383,8 @@ class Report:
         await self.setup_github(ctx)
 
     async def force_deny(self, ctx):
-        await self.resolve(ctx, "This report was denied.", author=constants.OWNER_ID)
+        await self.resolve(ctx, "This report was closed. See #bug-discussions or #request-discussions for more "
+                                "information.", author=constants.OWNER_ID)
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
@@ -431,7 +424,7 @@ class Report:
 
     async def update(self, ctx):
         msg = await self.get_message(ctx)
-        if msg is None and self.is_open():
+        if msg is None and self.is_open() and self.github_issue:
             await self.setup_message(ctx.bot)
         elif self.is_open():
             await msg.edit(embed=self.get_embed())
@@ -475,7 +468,7 @@ class Report:
         if msg:
             await self.addnote(ctx.message.author.id, f"Unresolved - {msg}", ctx)
 
-        await self.setup_message(ctx.bot)
+        await self.get_message(ctx.bot)  # sets up message again if needed
 
         if open_github_issue and self.github_issue:
             await GitHubClient.get_instance().open_issue(self.repo, self.github_issue)
@@ -501,9 +494,9 @@ class Report:
             labels.append("bug")
         else:
             labels.append("featurereq")
-            if self.upvotes - self.downvotes > 14:
+            if self.score > 14:
                 labels.append('+15')
-            elif self.upvotes - self.downvotes > 9:
+            elif self.score > 9:
                 labels.append('+10')
         return [l for l in labels if l]
 

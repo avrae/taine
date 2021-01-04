@@ -6,10 +6,12 @@ import traceback
 
 # this hooks a lot of weird things and needs to be imported early
 from lib import newrelic_hooks
+
 newrelic_hooks.hook_all()
 
 import sentry_sdk
 from boto3.dynamodb.conditions import Attr
+import discord
 from discord import Intents
 from discord.ext import commands
 from discord.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
@@ -103,8 +105,6 @@ async def on_message(message):
 
         report = await Report.new(message.author.id, report_id, title,
                                   [Attachment(message.author.id, message.content + attach)], is_bug=is_bug, repo=repo)
-        if is_bug:
-            await report.setup_github(await bot.get_context(message))
 
         await report.setup_message(bot)
         report.commit()
