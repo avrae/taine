@@ -44,8 +44,6 @@ class Reactions(commands.Cog):
         except ReportException:
             return
 
-        if report.is_bug:
-            return
         if member.bot:
             return
 
