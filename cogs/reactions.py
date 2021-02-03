@@ -67,7 +67,7 @@ class Reactions(commands.Cog):
         except ReportException as e:
             await member.send(str(e))
 
-        if member.id not in report.subscribers:
+        if member.id not in report.subscribers and member.id != constants.OWNER_ID:
             report.subscribers.append(member.id)
         report.commit()
         await report.update(ContextProxy(self.bot))
