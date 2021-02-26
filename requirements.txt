@@ -1,6 +1,6 @@
 aioboto3==6.4.1
 aiobotocore==0.10.2
-aiohttp==3.6.2
+aiohttp==3.7.4
 async-generator==1.10
 async-timeout==3.0.0
 atomicwrites==1.1.5
