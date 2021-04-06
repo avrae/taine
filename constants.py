@@ -40,7 +40,7 @@ REPO_ID_MAP = {
 
 TRACKER_CHAN = 360855116057673729
 
-OWNER_GITHUB = "mommothazaz123"
+OWNER_GITHUB = "zhudotexe"
 MY_GITHUB = "taine-bot"
 
 REACTIONS = [
