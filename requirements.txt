@@ -23,7 +23,7 @@ more-itertools==4.2.0
 multidict==4.7.4
 newrelic==4.20.1.121
 pluggy==0.6.0
-py==1.5.4
+py==1.10.0
 PyGithub==1.43.7
 PyJWT==1.6.4
 pytest==3.6.3
