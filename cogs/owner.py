@@ -1,4 +1,5 @@
 import copy
+import time
 
 import discord
 from boto3.dynamodb.conditions import Attr
@@ -50,7 +51,7 @@ class Owner(commands.Cog):
         report.commit()
 
         new_report.report_id = f"{identifier}-{id_num}"
-        msg = await self.bot.get_channel(constants.TRACKER_CHAN).send(embed=new_report.get_embed())
+        msg = await new_report.setup_message(self.bot)
         new_report.message = msg.id
         if new_report.github_issue:
             await new_report.update_labels()
@@ -184,6 +185,30 @@ class Owner(commands.Cog):
             return
         embed = await self._generate_changelog(build_id, msg)
         await ctx.send(embed=embed)
+
+    @commands.command()
+    async def reset_messages(self, ctx, yes):
+        """Owner only - recreate all report messages. Takes some time! Pass "yes" as first arg."""
+        if not ctx.message.author.id == constants.OWNER_ID:
+            return
+
+        if yes != 'yes':
+            return
+
+        await ctx.trigger_typing()
+
+        start = time.monotonic()
+        reports = []
+        async for data in query(db.reports, Attr("severity").gte(0)):
+            reports.append(Report.from_dict(data))
+
+        for report in sorted(reports, key=lambda r: r.report_id):
+            await report.setup_message(self.bot)
+            report.commit()
+
+        end = time.monotonic()
+        t = end - start
+        await ctx.send(f'done, setup {len(reports)} messages in {t} seconds')
 
 
 def setup(bot):

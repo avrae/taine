@@ -219,12 +219,13 @@ class Report:
         # await GitHubClient.get_instance().add_issue_to_project(issue.number, is_bug=self.is_bug)
 
     async def setup_message(self, bot):
-        report_message = await bot.get_channel(constants.TRACKER_CHAN).send(embed=self.get_embed())
+        report_message = await self.get_channel(bot).send(embed=self.get_embed())
         self.message = report_message.id
         if not self.is_bug:
             await report_message.add_reaction(UPVOTE_REACTION)
             await report_message.add_reaction(DOWNVOTE_REACTION)
         await report_message.add_reaction(INFO_REACTION)
+        return report_message
 
     def commit(self):
         ddb.reports.put_item(Item=self.to_dict())
@@ -396,6 +397,10 @@ class Report:
         if ctx.message.author.id in self.subscribers:
             self.subscribers.remove(ctx.message.author.id)
 
+    def get_channel(self, bot):
+        return bot.get_channel(constants.BUG_TRACKER_CHAN) if self.is_bug \
+            else bot.get_channel(constants.REQ_TRACKER_CHAN)
+
     async def get_message(self, ctx):
         if self.message is MESSAGE_SENTINEL:
             return None
@@ -403,7 +408,7 @@ class Report:
             return self.message_cache[self.message]
         else:
             try:
-                msg = await ctx.bot.get_channel(constants.TRACKER_CHAN).fetch_message(self.message)
+                msg = await self.get_channel(ctx.bot).fetch_message(self.message)
             except discord.HTTPException:
                 msg = None
             if msg:
