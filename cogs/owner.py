@@ -169,7 +169,7 @@ class Owner(commands.Cog):
             return
 
         async def resolver(report):
-            await report.resolve(ctx, f"Patched in build {build_id}", ignore_closed=True)
+            await report.resolve(ctx, ignore_closed=True)
             report.pending = False
             report.commit()
 

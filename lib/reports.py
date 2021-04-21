@@ -434,12 +434,12 @@ class Report:
             raise ReportException("This report is already closed.")
 
         self.severity = -1
-        if pend:
+        if msg:
+            await self.addnote(author or ctx.author.id, f"Resolved - {msg}", ctx)
+        elif pend:
             await self.notify_subscribers(ctx, f"Report resolved - a patch is pending.")
         else:
             await self.notify_subscribers(ctx, f"Report closed.")
-        if msg:
-            await self.addnote(author or ctx.author.id, f"Resolved - {msg}", ctx)
 
         await self.delete_message(ctx)
 
