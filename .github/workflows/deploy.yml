@@ -38,7 +38,7 @@ jobs:
           ECR_REPOSITORY: avrae/${{ env.SERVICE_NAME }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $SERVICE_NAME --build-arg COMMIT=$GITHUB_SHA .
+          docker build -t $SERVICE_NAME .
           docker tag $SERVICE_NAME $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker tag $SERVICE_NAME $ECR_REGISTRY/$ECR_REPOSITORY:$DEPLOY_ENV
           docker push -a $ECR_REGISTRY/$ECR_REPOSITORY
