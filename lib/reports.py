@@ -473,7 +473,7 @@ class Report:
         if msg:
             await self.addnote(ctx.message.author.id, f"Unresolved - {msg}", ctx)
 
-        await self.get_message(ctx.bot)  # sets up message again if needed
+        await self.get_message(ctx)  # sets up message again if needed
 
         if open_github_issue and self.github_issue:
             await GitHubClient.get_instance().open_issue(self.repo, self.github_issue)

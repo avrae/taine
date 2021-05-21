@@ -99,7 +99,7 @@ class Owner(commands.Cog):
         not_found = 0
         for _id in reports:
             try:
-                report = Report.from_id(_id)
+                report = Report.from_id(_id.strip(', '))
             except ReportException:
                 not_found += 1
                 continue
@@ -128,7 +128,7 @@ class Owner(commands.Cog):
         not_found = 0
         for _id in reports:
             try:
-                report = Report.from_id(_id)
+                report = Report.from_id(_id.strip(', '))
             except ReportException:
                 not_found += 1
                 continue
