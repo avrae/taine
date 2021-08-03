@@ -312,7 +312,7 @@ class Report:
             return None
         return f"https://github.com/{self.repo}/issues/{self.github_issue}"
 
-    async def add_attachment(self, ctx, attachment: Attachment, add_to_github=True):
+    async def add_attachment(self, ctx, attachment: Attachment, add_to_github=True, post_to_thread=True):
         self.attachments.append(attachment)
         if add_to_github and self.github_issue:
             if attachment.message:
@@ -322,6 +322,9 @@ class Report:
             if attachment.veri:
                 await GitHubClient.get_instance().edit_issue_body(self.repo, self.github_issue,
                                                                   self.get_github_desc(ctx))
+
+        if post_to_thread and (thread := await self.get_thread(ctx.bot)) is not None:
+            await thread.send(self.get_attachment_message(ctx, attachment))
 
     def get_attachment_message(self, ctx, attachment: Attachment):
         if isinstance(attachment.author, (int, Decimal)):
@@ -402,6 +405,38 @@ class Report:
     def get_channel(self, bot):
         return bot.get_channel(constants.BUG_TRACKER_CHAN) if self.is_bug \
             else bot.get_channel(constants.REQ_TRACKER_CHAN)
+
+    async def get_thread(self, bot, unarchive=False, create=False, message_id=None):
+        """Gets the thread associated with this report, unarchiving or creating it if necessary and specified."""
+        if message_id is None:
+            message_id = self.message
+
+        if message_id is MESSAGE_SENTINEL:
+            return None
+
+        # get thread channel
+        channel = self.get_channel(bot)
+        thread = channel.get_thread(message_id)
+        if thread is None:
+            try:
+                thread = await bot.fetch_channel(message_id)
+            except discord.NotFound:
+                pass
+
+        if thread is None and create:
+            message = channel.get_partial_message(message_id)
+            try:
+                thread = await channel.start_thread(name=self.report_id, message=message)
+                # remove any system message
+                await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
+            except discord.HTTPException:
+                pass
+
+        # unarchive if it archived
+        if unarchive and thread.archived and not thread.locked:
+            await thread.edit(archived=False)
+
+        return thread
 
     async def get_message(self, ctx):
         if self.message is MESSAGE_SENTINEL:

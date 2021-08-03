@@ -122,6 +122,9 @@ async def canrepro(ctx, _id, *, msg=''):
     report.subscribe(ctx)
     await report.update(ctx)
     report.commit()
+
+    if ctx.channel.id == report.message:  # do not confirm in a thread
+        return
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
 
 
@@ -133,6 +136,9 @@ async def upvote(ctx, _id, *, msg=''):
     report.subscribe(ctx)
     await report.update(ctx)
     report.commit()
+
+    if ctx.channel.id == report.message:  # do not confirm in a thread
+        return
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
 
 
@@ -144,6 +150,9 @@ async def cannotrepro(ctx, _id, *, msg=''):
     report.subscribe(ctx)
     await report.update(ctx)
     report.commit()
+
+    if ctx.channel.id == report.message:  # do not confirm in a thread
+        return
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
 
 
@@ -155,6 +164,9 @@ async def downvote(ctx, _id, *, msg=''):
     report.subscribe(ctx)
     await report.update(ctx)
     report.commit()
+
+    if ctx.channel.id == report.message:  # do not confirm in a thread
+        return
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
 
 
@@ -166,6 +178,9 @@ async def note(ctx, _id, *, msg=''):
     report.subscribe(ctx)
     await report.update(ctx)
     report.commit()
+
+    if ctx.channel.id == report.message:  # do not confirm in a thread
+        return
     await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
 
 

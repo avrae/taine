@@ -92,28 +92,11 @@ class Reactions(commands.Cog):
         Ensures that a public thread exists on the given message, and the given member is a member of that thread.
         Deletes any "thread created" system messages.
         """
-        # get thread channel
-        channel = report.get_channel(self.bot)
-        thread = channel.get_thread(message_id)
-        if thread is None:
-            try:
-                thread = await self.bot.fetch_channel(message_id)
-            except discord.NotFound:
-                pass
-
-        if thread is None:
-            message = channel.get_partial_message(message_id)
-            thread = await channel.start_thread(name=report.report_id, message=message)
-
-        # unarchive if it archived
-        if thread.archived and not thread.locked:
-            await thread.edit(archived=False)
+        thread = await report.get_thread(self.bot, unarchive=True, create=True, message_id=message_id)
 
         try:
             # add the user
             await thread.add_user(member)
-            # remove any system message
-            await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
         except discord.HTTPException:
             pass
 
