@@ -47,6 +47,7 @@ GITHUB_BASE = "https://github.com"
 UPVOTE_REACTION = "\U0001f44d"
 DOWNVOTE_REACTION = "\U0001f44e"
 INFO_REACTION = "\u2139"
+THREAD_REACTION = "\U0001f9f5"  # :thread:
 # how many upvotes a feature req needs to be added to GitHub
 GITHUB_THRESHOLD = int(os.environ.get("FR_APPROVE_THRESHOLD", 5))
 # how many downvotes a feature req needs to be closed automatically
@@ -225,6 +226,7 @@ class Report:
             await report_message.add_reaction(UPVOTE_REACTION)
             await report_message.add_reaction(DOWNVOTE_REACTION)
         await report_message.add_reaction(INFO_REACTION)
+        await report_message.add_reaction(THREAD_REACTION)
         return report_message
 
     def commit(self):

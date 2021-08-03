@@ -3,7 +3,7 @@ from discord.ext import commands
 
 import constants
 from lib.misc import ContextProxy
-from lib.reports import DOWNVOTE_REACTION, INFO_REACTION, Report, ReportException, UPVOTE_REACTION
+from lib.reports import DOWNVOTE_REACTION, INFO_REACTION, Report, ReportException, THREAD_REACTION, UPVOTE_REACTION
 
 README_MSG_ID = 590642451266535461
 BUG_HUNTER_REACTION_ID = 454031039375867925
@@ -36,7 +36,7 @@ class Reactions(commands.Cog):
             elif emoji.id == ACCEPT_REACTION_ID:
                 return await self.toggle_role(member, id=ACCEPT_ROLE_ID)
 
-        if emoji.name not in (UPVOTE_REACTION, DOWNVOTE_REACTION, INFO_REACTION):
+        if emoji.name not in (UPVOTE_REACTION, DOWNVOTE_REACTION, INFO_REACTION, THREAD_REACTION):
             return
 
         try:
@@ -64,6 +64,9 @@ class Reactions(commands.Cog):
             elif emoji.name == INFO_REACTION:
                 await member.send(embed=report.get_embed(True, ContextProxy(self.bot, guild=member.guild)))
                 return
+            elif emoji.name == THREAD_REACTION:
+                await self.ensure_report_thread(report, msg_id, member)
+                return
         except ReportException as e:
             await member.send(str(e))
 
@@ -83,6 +86,36 @@ class Reactions(commands.Cog):
         else:
             await member.add_roles(role)
             await member.send(f"Okay! You now have {role.name}.")
+
+    async def ensure_report_thread(self, report, message_id, member):
+        """
+        Ensures that a public thread exists on the given message, and the given member is a member of that thread.
+        Deletes any "thread created" system messages.
+        """
+        # get thread channel
+        channel = report.get_channel(self.bot)
+        thread = channel.get_thread(message_id)
+        if thread is None:
+            try:
+                thread = await self.bot.fetch_channel(message_id)
+            except discord.NotFound:
+                pass
+
+        if thread is None:
+            message = channel.get_partial_message(message_id)
+            thread = await channel.start_thread(name=report.report_id, message=message)
+
+        # unarchive if it archived
+        if thread.archived and not thread.locked:
+            await thread.edit(archived=False)
+
+        try:
+            # add the user
+            await thread.add_user(member)
+            # remove any system message
+            await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
+        except discord.HTTPException:
+            pass
 
 
 def setup(bot):
