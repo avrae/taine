@@ -4,14 +4,9 @@ import re
 import sys
 import traceback
 
-# this hooks a lot of weird things and needs to be imported early
-from lib import newrelic_hooks
-
-newrelic_hooks.hook_all()
-
+import discord
 import sentry_sdk
 from boto3.dynamodb.conditions import Attr
-import discord
 from discord import Intents
 from discord.ext import commands
 from discord.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
