@@ -420,7 +420,7 @@ class Report:
         message = channel.get_partial_message(message_id)
         thread = None
         try:
-            thread = await channel.start_thread(name=self.report_id, message=message)
+            thread = await channel.create_thread(name=self.report_id, message=message)
             # remove any system message
             await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
             # send the full report detail and pin it
