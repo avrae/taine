@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from decimal import Decimal
@@ -59,6 +60,7 @@ CLOSE_THRESHOLD = int(os.environ.get("FR_DENY_THRESHOLD", -3))
 # and falsy, which is compatible with old None checks
 MESSAGE_SENTINEL = 0
 GITHUB_ISSUE_SENTINEL = 0
+log = logging.getLogger(__name__)
 
 
 class Attachment:
@@ -429,7 +431,7 @@ class Report:
             if reporter is not None:
                 await thread.add_user(reporter)
         except discord.HTTPException as e:
-            print(f"error in create thread: {e}")
+            log.warning(f"error in create thread: {e}")
         return thread
 
     async def get_thread(self, bot, unarchive=False, create=False, message_id=None):

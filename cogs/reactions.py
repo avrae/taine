@@ -1,3 +1,5 @@
+import logging
+
 import discord
 from discord.ext import commands
 
@@ -11,6 +13,7 @@ BUG_HUNTER_ROLE_ID = 469137394742853642
 ACCEPT_REACTION_ID = 434140566834511872
 ACCEPT_ROLE_ID = 641756218955792394
 NO_REPORTS_ROLE_ID = 513457946366312478
+log = logging.getLogger(__name__)
 
 
 class Reactions(commands.Cog):
@@ -55,7 +58,7 @@ class Reactions(commands.Cog):
                     await report.upvote(member.id, '', ContextProxy(self.bot))
             elif emoji.name == DOWNVOTE_REACTION:
                 if member.id == constants.OWNER_ID:
-                    print(f"Force denying {report.title}")
+                    log.info(f"Force denying {report.title}")
                     await report.force_deny(ContextProxy(self.bot))
                     report.commit()
                     return
