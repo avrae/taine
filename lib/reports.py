@@ -9,6 +9,7 @@ from cachetools import LRUCache
 import constants
 import lib.db as ddb
 from lib.github import GitHubClient
+from lib.misc import ContextProxy
 
 PRIORITY = {
     -2: "Patch Pending", -1: "Resolved",
@@ -406,6 +407,31 @@ class Report:
         return bot.get_channel(constants.BUG_TRACKER_CHAN) if self.is_bug \
             else bot.get_channel(constants.REQ_TRACKER_CHAN)
 
+    async def create_thread(self, bot, message_id=None):
+        """Creates a thread for this report on the given message, or the report's default message."""
+        if message_id is None and self.message is not MESSAGE_SENTINEL:
+            message_id = self.message
+        elif message_id is None:
+            return
+
+        channel = self.get_channel(bot)
+        message = channel.get_partial_message(message_id)
+        thread = None
+        try:
+            thread = await channel.start_thread(name=self.report_id, message=message)
+            # remove any system message
+            await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
+            # send the full report detail and pin it
+            msg = await thread.send(self.get_embed(detailed=True, ctx=ContextProxy(bot, guild=channel.guild)))
+            await msg.pin()
+            # add the report author
+            reporter = channel.guild.get_member(self.reporter)
+            if reporter is not None:
+                await thread.add_user(reporter)
+        except discord.HTTPException:
+            pass
+        return thread
+
     async def get_thread(self, bot, unarchive=False, create=False, message_id=None):
         """Gets the thread associated with this report, unarchiving or creating it if necessary and specified."""
         if message_id is None:
@@ -424,13 +450,7 @@ class Report:
                 pass
 
         if thread is None and create:
-            message = channel.get_partial_message(message_id)
-            try:
-                thread = await channel.start_thread(name=self.report_id, message=message)
-                # remove any system message
-                await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
-            except discord.HTTPException:
-                pass
+            thread = await self.create_thread(bot, message_id)
 
         # unarchive if it archived
         if unarchive and thread.archived and not thread.locked:
