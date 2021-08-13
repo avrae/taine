@@ -75,7 +75,14 @@ async def on_command_error(ctx, error):
         bot.log_exception(error)
 
     await ctx.message.channel.send(f"Error: {error}")
-    traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+    for line in traceback.format_exception(type(error), error, error.__traceback__):
+        log.warning(line)
+
+
+@bot.event
+async def on_error(event, *args, **kwargs):
+    for line in traceback.format_exception(*sys.exc_info()):
+        log.warning(line)
 
 
 @bot.event
