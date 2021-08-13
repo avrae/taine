@@ -422,14 +422,14 @@ class Report:
             # remove any system message
             await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
             # send the full report detail and pin it
-            msg = await thread.send(self.get_embed(detailed=True, ctx=ContextProxy(bot, guild=channel.guild)))
+            msg = await thread.send(embed=self.get_embed(detailed=True, ctx=ContextProxy(bot, guild=channel.guild)))
             await msg.pin()
             # add the report author
-            reporter = channel.guild.get_member(self.reporter)
+            reporter = bot.get_user(self.reporter)
             if reporter is not None:
                 await thread.add_user(reporter)
-        except discord.HTTPException:
-            pass
+        except discord.HTTPException as e:
+            print(f"error in create thread: {e}")
         return thread
 
     async def get_thread(self, bot, unarchive=False, create=False, message_id=None):
