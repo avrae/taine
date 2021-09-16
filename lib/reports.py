@@ -419,8 +419,11 @@ class Report:
         channel = self.get_channel(bot)
         message = channel.get_partial_message(message_id)
         thread = None
+        thread_name = f"{self.report_id} {self.title}"
+        if len(thread_name) > 100:
+            thread_name = f"{thread_name[:97]}..."
         try:
-            thread = await channel.create_thread(name=self.report_id, message=message)
+            thread = await channel.create_thread(name=thread_name, message=message)
             # remove any system message
             await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
             # send the full report detail and pin it
