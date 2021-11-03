@@ -1,23 +1,19 @@
+import datetime
 import logging
 import os
-import random
-import re
 import sys
 import traceback
+from math import floor, isfinite
 
-import discord
+import disnake
 import sentry_sdk
-from boto3.dynamodb.conditions import Attr
-from discord import Intents
-from discord.ext import commands
-from discord.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
+from disnake import Intents
+from disnake.ext import commands
+from disnake.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
 
 import constants
-from lib import db
-from lib.db import query
 from lib.github import GitHubClient
-from lib.misc import search_and_select
-from lib.reports import Attachment, Report, ReportException, get_next_report_num
+from lib.reports import ReportException
 
 ORG_NAME = os.environ.get("ORG_NAME", "avrae")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -39,7 +35,12 @@ class Taine(commands.AutoShardedBot):
 
 
 intents = Intents.all()
-bot = Taine(command_prefix="~", intents=intents)
+bot = Taine(
+    command_prefix="~",
+    intents=intents,
+    test_guilds=constants.SLASH_TEST_GUILDS,
+    sync_commands_debug=False
+)
 
 log_formatter = logging.Formatter('%(levelname)s:%(name)s: %(message)s')
 handler = logging.StreamHandler(sys.stdout)
@@ -49,9 +50,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(handler)
 log = logging.getLogger('bot')
 
-EXTENSIONS = ("web.web", "cogs.owner", "cogs.reactions", "cogs.repl", "cogs.inline")
-BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
-FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s*(.+?)(\n|$)")
+EXTENSIONS = ("web.web", "cogs.reports", "cogs.owner", "cogs.reactions", "cogs.repl", "cogs.inline")
 
 
 @bot.event
@@ -80,6 +79,20 @@ async def on_command_error(ctx, error):
 
 
 @bot.event
+async def on_slash_command_error(inter, error):
+    if isinstance(error, CommandInvokeError):
+        error = error.original
+
+    # send error to sentry.io
+    if not isinstance(error, (ReportException, UserInputError, CheckFailure)):
+        bot.log_exception(error)
+
+    await inter.response.send_message(f"Error: {error}")
+    for line in traceback.format_exception(type(error), error, error.__traceback__):
+        log.warning(line)
+
+
+@bot.event
 async def on_error(event, *args, **kwargs):
     for line in traceback.format_exception(*sys.exc_info()):
         log.warning(line)
@@ -87,207 +100,20 @@ async def on_error(event, *args, **kwargs):
 
 @bot.event
 async def on_message(message):
-    identifier = None
-    repo = None
-    is_bug = None
-
-    feature_match = FEATURE_RE.match(message.content)
-    bug_match = BUG_RE.match(message.content)
-    match = None
-
-    if feature_match:
-        match = feature_match
-        is_bug = False
-    elif bug_match:
-        match = bug_match
-        is_bug = True
-
-    for chan in constants.BUG_LISTEN_CHANS:
-        if message.channel.id == chan['id']:
-            identifier = chan['identifier']
-            repo = chan['repo']
-
-    if match and identifier:
-        title = match.group(1).strip(" *.\n")
-        report_num = get_next_report_num(identifier)
-        report_id = f"{identifier}-{report_num}"
-        attach = "\n" + '\n'.join(f"\n{'!' if item.url.lower().endswith(('.png', '.jpg', '.gif')) else ''}"
-                                  f"[{item.filename}]({item.url})" for item in message.attachments)
-
-        report = await Report.new(message.author.id, report_id, title,
-                                  [Attachment(message.author.id, message.content + attach)], is_bug=is_bug, repo=repo)
-
-        await report.setup_message(bot)
-        report.commit()
-        await message.add_reaction(random.choice(constants.REACTIONS))
-
     await bot.process_commands(message)
 
 
-@bot.command(name="report")
-async def viewreport(ctx, _id):
-    """Gets the detailed status of a report."""
-    await ctx.send(embed=Report.from_id(_id).get_embed(True, ctx))
-
-
-@bot.command(aliases=['cr'])
-async def canrepro(ctx, _id, *, msg=''):
-    """Adds reproduction to a report."""
-    report = Report.from_id(_id)
-    await report.canrepro(ctx.message.author.id, msg, ctx)
-    report.subscribe(ctx)
-    await report.update(ctx)
-    report.commit()
-
-    if ctx.channel.id == report.message:  # do not confirm in a thread
-        return
-    await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-
-
-@bot.command(aliases=['up'])
-async def upvote(ctx, _id, *, msg=''):
-    """Adds an upvote to the selected feature request."""
-    report = Report.from_id(_id)
-    await report.upvote(ctx.message.author.id, msg, ctx)
-    report.subscribe(ctx)
-    await report.update(ctx)
-    report.commit()
-
-    if ctx.channel.id == report.message:  # do not confirm in a thread
-        return
-    await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-
-
-@bot.command(aliases=['cnr'])
-async def cannotrepro(ctx, _id, *, msg=''):
-    """Adds nonreproduction to a report."""
-    report = Report.from_id(_id)
-    await report.cannotrepro(ctx.message.author.id, msg, ctx)
-    report.subscribe(ctx)
-    await report.update(ctx)
-    report.commit()
-
-    if ctx.channel.id == report.message:  # do not confirm in a thread
-        return
-    await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-
-
-@bot.command(aliases=['down'])
-async def downvote(ctx, _id, *, msg=''):
-    """Adds a downvote to the selected feature request."""
-    report = Report.from_id(_id)
-    await report.downvote(ctx.message.author.id, msg, ctx)
-    report.subscribe(ctx)
-    await report.update(ctx)
-    report.commit()
-
-    if ctx.channel.id == report.message:  # do not confirm in a thread
-        return
-    await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-
-
-@bot.command()
-async def note(ctx, _id, *, msg=''):
-    """Adds a note to a report."""
-    report = Report.from_id(_id)
-    await report.addnote(ctx.message.author.id, msg, ctx)
-    report.subscribe(ctx)
-    await report.update(ctx)
-    report.commit()
-
-    if ctx.channel.id == report.message:  # do not confirm in a thread
-        return
-    await ctx.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.")
-
-
-@bot.command(aliases=['sub'])
-async def subscribe(ctx, report_id):
-    """Subscribes to a report."""
-    report = Report.from_id(report_id)
-    if ctx.message.author.id in report.subscribers:
-        report.unsubscribe(ctx)
-        await ctx.send(f"OK, unsubscribed from `{report.report_id}` - {report.title}.")
-    else:
-        report.subscribe(ctx)
-        await ctx.send(f"OK, subscribed to `{report.report_id}` - {report.title}.")
-    report.commit()
-
-
-@bot.command()
-async def unsuball(ctx):
-    """Unsubscribes from all reports."""
-    num_unsubbed = 0
-    sentinel = lek = object()
-
-    fe = Attr("subscribers").contains(ctx.author.id)
-    while lek is not None:
-        if lek is sentinel:
-            response = db.reports.scan(
-                FilterExpression=fe
-            )
-        else:
-            response = db.reports.scan(
-                FilterExpression=fe,
-                ExclusiveStartKey=lek
-            )
-
-        lek = response.get('LastEvaluatedKey')
-        for report in response['Items']:
-            i = report['subscribers'].index(ctx.author.id)
-            num_unsubbed += 1
-            db.reports.update_item(
-                Key={"report_id": report['report_id']},
-                UpdateExpression=f"REMOVE subscribers[{i}]"
-            )
-
-    await ctx.send(f"OK, unsubscribed from {num_unsubbed} reports.")
-
-
-@bot.command()
-async def search(ctx, *, q):
-    """Searches for a report."""
-    to_search = []
-    async for report_data in query(db.reports):
-        to_search.append(Report.from_dict(report_data))
-    result = await search_and_select(ctx, to_search, q, key=lambda report: report.title)
-    if result is None:
-        return await ctx.send("Report not found.")
-    await ctx.send(embed=result.get_embed(detailed=True, ctx=ctx))
-
-
-@bot.command()
-async def top(ctx, n: int = 10):
-    """Searches for the top feature requests."""
-    if n < 1 or n > 20:
-        return await ctx.send("Invalid number.")
-
-    await ctx.trigger_typing()
-
-    embed = discord.Embed()
-    embed.title = f"Top {n} Open Feature Requests"
-    embed.description = "Click a report to jump to its tracker message."
-
-    reports = []
-    async for fr_data in query(db.reports, Attr("is_bug").eq(False) and Attr("severity").gte(0)):
-        reports.append(Report.from_dict(fr_data))
-    sorted_reports = sorted(reports, key=lambda r: r.score, reverse=True)[:n]
-    last_field = []
-
-    for report in sorted_reports:
-        message = await report.get_message(ctx)
-        if message is not None:
-            report_str = f"`{report.score:+}` [`{report.report_id}` {report.title}]({message.jump_url})"
-        else:
-            report_str = f"`{report.score:+}` `{report.report_id}` {report.title}"
-
-        if len(report_str) + sum(len(s) + 1 for s in last_field) > 1024:
-            embed.add_field(name='** **', value='\n'.join(last_field), inline=False)
-            last_field = [report_str]
-        else:
-            last_field.append(report_str)
-    embed.add_field(name='** **', value='\n'.join(last_field), inline=False)
-
-    await ctx.send(embed=embed)
+@bot.slash_command()
+async def ping(
+    inter: disnake.ApplicationCommandInteraction
+):
+    """Returns the bot's latency to the Discord API."""
+    now = datetime.datetime.utcnow()
+    await inter.response.defer()  # this makes an API call, we use the RTT of that call as the latency
+    delta = datetime.datetime.utcnow() - now
+    httping = floor(delta.total_seconds() * 1000)
+    wsping = floor(bot.latency * 1000) if isfinite(bot.latency) else "Unknown"
+    await inter.followup.send(f"Pong.\nHTTP Ping = {httping} ms.\nWS Ping = {wsping} ms.")
 
 
 if __name__ == '__main__':

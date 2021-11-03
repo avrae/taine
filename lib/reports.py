@@ -10,7 +10,6 @@ from cachetools import LRUCache
 import constants
 import lib.db as ddb
 from lib.github import GitHubClient
-from lib.misc import ContextProxy
 
 PRIORITY = {
     -2: "Patch Pending", -1: "Resolved",
@@ -220,8 +219,6 @@ class Report:
                                                                labels)
         self.github_issue = issue.number
 
-        # await GitHubClient.get_instance().add_issue_to_project(issue.number, is_bug=self.is_bug)
-
     async def setup_message(self, bot):
         report_message = await self.get_channel(bot).send(embed=self.get_embed())
         self.message = report_message.id
@@ -235,7 +232,7 @@ class Report:
     def commit(self):
         ddb.reports.put_item(Item=self.to_dict())
 
-    def get_embed(self, detailed=False, ctx=None):
+    def get_embed(self, detailed=False, guild=None):
         embed = discord.Embed()
         if isinstance(self.reporter, (int, Decimal)):
             embed.add_field(name="Added By", value=f"<@{self.reporter}>")
@@ -259,12 +256,12 @@ class Report:
             embed.url = f"{GITHUB_BASE}/{self.repo}/issues/{self.github_issue}"
         embed.description = f"*{len(self.attachments)} notes*"
         if detailed:
-            if not ctx:
+            if not guild:
                 raise ValueError("Context not supplied for detailed call.")
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
-                if isinstance(attachment.author, (int, Decimal)) and ctx.guild:
-                    user = ctx.guild.get_member(attachment.author)
+                if isinstance(attachment.author, (int, Decimal)) and guild:
+                    user = guild.get_member(attachment.author)
                 else:
                     user = attachment.author
                 if attachment.message:
@@ -288,25 +285,17 @@ class Report:
             desc = msg
 
         if not self.is_bug:
-            i = 0
             for attachment in self.attachments[1:]:
-                if attachment.message and i >= GITHUB_THRESHOLD:
-                    continue
-                i += attachment.veri // 2
                 msg = ''
                 for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
                     msg += f"> {line}\n"
                 desc += f"\n\n{msg}"
-            desc += f"\nVotes: +{self.upvotes} / -{self.downvotes}"
         else:
             for attachment in self.attachments[1:]:
-                if attachment.message:
-                    continue
                 msg = ''
                 for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
                     msg += f"> {line}\n"
                 desc += f"\n\n{msg}"
-            desc += f"\nVerification: {self.verification}"
 
         return desc
 
@@ -321,10 +310,6 @@ class Report:
             if attachment.message:
                 msg = self.get_attachment_message(ctx, attachment)
                 await GitHubClient.get_instance().add_issue_comment(self.repo, self.github_issue, msg)
-
-            if attachment.veri:
-                await GitHubClient.get_instance().edit_issue_body(self.repo, self.github_issue,
-                                                                  self.get_github_desc(ctx))
 
         if post_to_thread and (thread := await self.get_thread(ctx.bot)) is not None:
             await thread.send(self.get_attachment_message(ctx, attachment))
@@ -397,13 +382,13 @@ class Report:
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
-        if ctx.message.author.id not in self.subscribers:
-            self.subscribers.append(ctx.message.author.id)
+        if ctx.author.id not in self.subscribers:
+            self.subscribers.append(ctx.author.id)
 
     def unsubscribe(self, ctx):
         """Ensures a user is not subscribed to this report."""
-        if ctx.message.author.id in self.subscribers:
-            self.subscribers.remove(ctx.message.author.id)
+        if ctx.author.id in self.subscribers:
+            self.subscribers.remove(ctx.author.id)
 
     def get_channel(self, bot):
         return bot.get_channel(constants.BUG_TRACKER_CHAN) if self.is_bug \
@@ -427,7 +412,7 @@ class Report:
             # remove any system message
             await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
             # send the full report detail and pin it
-            msg = await thread.send(embed=self.get_embed(detailed=True, ctx=ContextProxy(bot, guild=channel.guild)))
+            msg = await thread.send(embed=self.get_embed(detailed=True, guild=channel.guild))
             await msg.pin()
             # add the report author
             reporter = bot.get_user(self.reporter)

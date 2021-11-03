@@ -143,7 +143,7 @@ class Web(commands.Cog):
         comment = data['comment']
         action = data['action']
         username = comment['user']['login']
-        if username == "taine-bot":
+        if username == constants.MY_GITHUB:
             return  # don't infinitely add comments
 
         # only care about create

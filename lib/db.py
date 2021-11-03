@@ -11,6 +11,11 @@ reportnums = dynamo.Table('taine.reportnums')
 
 
 async def query(table, filter_exp=None):
+    for item in query_sync(table, filter_exp):
+        yield item
+
+
+def query_sync(table, filter_exp=None):
     the_filter = {}
     if filter_exp is not None:
         the_filter = dict(FilterExpression=filter_exp)
