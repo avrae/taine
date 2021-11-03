@@ -11,21 +11,6 @@ BUG_LISTEN_CHANS = [
         "id": 297190603819843586,  # feature-request
         "identifier": "AFR",
         "repo": "avrae/avrae"
-    },
-    {
-        "id": 487486995527106580,  # web-reports
-        "identifier": "WEB",
-        "repo": "avrae/avrae.io"
-    },
-    {
-        "id": 590611030611197962,  # api-reports
-        "identifier": "API",
-        "repo": "avrae/avrae-service"
-    },
-    {
-        "id": 590611115734728704,  # taine-reports
-        "identifier": "TNE",
-        "repo": "avrae/taine"
     }
 ]
 
@@ -33,9 +18,6 @@ BUG_LISTEN_CHANS = [
 REPO_ID_MAP = {
     "avrae/avrae": "AVR",
     "avrae/avrae:feature": "AFR",
-    "avrae/avrae.io": "WEB",
-    "avrae/avrae-service": "API",
-    "avrae/taine": "TNE"
 }
 
 BUG_TRACKER_CHAN = 834500794429734912
@@ -46,6 +28,11 @@ REQ_TRACKER_CHAN = 834514549356625960
 
 OWNER_GITHUB = "zhudotexe"
 MY_GITHUB = "taine-bot"
+
+SLASH_TEST_GUILDS = [
+    269275778867396608,  # Avrae Development
+    615687442451792017,  # Taine Test
+]
 
 REACTIONS = [
     "\U0001f640",  # scream_cat
