@@ -285,25 +285,17 @@ class Report:
             desc = msg
 
         if not self.is_bug:
-            i = 0
             for attachment in self.attachments[1:]:
-                if attachment.message and i >= GITHUB_THRESHOLD:
-                    continue
-                i += attachment.veri // 2
                 msg = ''
                 for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
                     msg += f"> {line}\n"
                 desc += f"\n\n{msg}"
-            desc += f"\nVotes: +{self.upvotes} / -{self.downvotes}"
         else:
             for attachment in self.attachments[1:]:
-                if attachment.message:
-                    continue
                 msg = ''
                 for line in self.get_attachment_message(ctx, attachment).strip().splitlines():
                     msg += f"> {line}\n"
                 desc += f"\n\n{msg}"
-            desc += f"\nVerification: {self.verification}"
 
         return desc
 
@@ -318,10 +310,6 @@ class Report:
             if attachment.message:
                 msg = self.get_attachment_message(ctx, attachment)
                 await GitHubClient.get_instance().add_issue_comment(self.repo, self.github_issue, msg)
-
-            if attachment.veri:
-                await GitHubClient.get_instance().edit_issue_body(self.repo, self.github_issue,
-                                                                  self.get_github_desc(ctx))
 
         if post_to_thread and (thread := await self.get_thread(ctx.bot)) is not None:
             await thread.send(self.get_attachment_message(ctx, attachment))

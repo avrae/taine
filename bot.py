@@ -39,7 +39,7 @@ bot = Taine(
     command_prefix="~",
     intents=intents,
     test_guilds=constants.SLASH_TEST_GUILDS,
-    sync_commands_debug=True
+    sync_commands_debug=False
 )
 
 log_formatter = logging.Formatter('%(levelname)s:%(name)s: %(message)s')
