@@ -7,9 +7,9 @@ from math import floor, isfinite
 
 import disnake
 import sentry_sdk
-from discord import Intents
-from discord.ext import commands
-from discord.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
+from disnake import Intents
+from disnake.ext import commands
+from disnake.ext.commands import CheckFailure, CommandInvokeError, CommandNotFound, UserInputError
 
 import constants
 from lib.github import GitHubClient
@@ -79,6 +79,20 @@ async def on_command_error(ctx, error):
 
 
 @bot.event
+async def on_slash_command_error(inter, error):
+    if isinstance(error, CommandInvokeError):
+        error = error.original
+
+    # send error to sentry.io
+    if not isinstance(error, (ReportException, UserInputError, CheckFailure)):
+        bot.log_exception(error)
+
+    await inter.response.send_message(f"Error: {error}")
+    for line in traceback.format_exception(type(error), error, error.__traceback__):
+        log.warning(line)
+
+
+@bot.event
 async def on_error(event, *args, **kwargs):
     for line in traceback.format_exception(*sys.exc_info()):
         log.warning(line)
@@ -91,7 +105,7 @@ async def on_message(message):
 
 @bot.slash_command()
 async def ping(
-        inter: disnake.ApplicationCommandInteraction
+    inter: disnake.ApplicationCommandInteraction
 ):
     """Returns the bot's latency to the Discord API."""
     now = datetime.datetime.utcnow()

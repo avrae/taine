@@ -65,7 +65,7 @@ class Reactions(commands.Cog):
                 else:
                     await report.downvote(member.id, '', ContextProxy(self.bot))
             elif emoji.name == INFO_REACTION:
-                await member.send(embed=report.get_embed(True, ContextProxy(self.bot, guild=member.guild)))
+                await member.send(embed=report.get_embed(True, guild=member.guild))
                 return
             elif emoji.name == THREAD_REACTION:
                 await self.ensure_report_thread(report, msg_id, member)
