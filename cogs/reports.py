@@ -40,7 +40,7 @@ class ReportCache(cachetools.TTLCache):
 
 async def slash_report_autocomplete(inter: disnake.ApplicationCommandInteraction, arg: str):
     out = []
-    for r in Reports.search_cache[inter.id]:
+    for r in Reports.search_cache['cache']:
         if arg.lower() in r.report_id.lower() or arg.lower() in r.title.lower():
             name = f"{r.report_id} {r.title}"
             if len(name) > 100:
@@ -50,7 +50,7 @@ async def slash_report_autocomplete(inter: disnake.ApplicationCommandInteraction
 
 
 def slash_report_converter(_, arg: str) -> Report:
-    report_id, _ = arg.split(maxsplit=1)
+    report_id, *_ = arg.split(maxsplit=1)
     return Report.from_id(report_id)
 
 
