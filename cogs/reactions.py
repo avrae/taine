@@ -52,14 +52,14 @@ class Reactions(commands.Cog):
 
         try:
             if emoji.name == UPVOTE_REACTION:
-                if member.id == constants.OWNER_ID:
+                if member.id in constants.OWNER_IDS:
                     await report.force_accept(ContextProxy(self.bot))
                 else:
                     await report.upvote(member.id, '', ContextProxy(self.bot))
             elif emoji.name == DOWNVOTE_REACTION:
-                if member.id == constants.OWNER_ID:
+                if member.id in constants.OWNER_IDS:
                     log.info(f"Force denying {report.title}")
-                    await report.force_deny(ContextProxy(self.bot))
+                    await report.force_deny(ContextProxy(self.bot), member.id)
                     report.commit()
                     return
                 else:
@@ -73,7 +73,7 @@ class Reactions(commands.Cog):
         except ReportException as e:
             await member.send(str(e))
 
-        if member.id not in report.subscribers and member.id != constants.OWNER_ID:
+        if member.id not in report.subscribers and member.id not in constants.OWNER_IDS:
             report.subscribers.append(member.id)
         report.commit()
         await report.update(ContextProxy(self.bot))

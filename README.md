@@ -41,7 +41,7 @@ Set the following environment variables:
 
 Other configuration is via `constants.py`:
 
-- `OWNER_ID` - the Discord User ID of the bot's owner. Used to check if a user can run owner-only commands.
+- `OWNER_IDS` - A list of the Discord User IDs of the bot's owners. Used to check if a user can run owner-only commands.
 - `BUG_LISTEN_CHANS` - a list of dictionaries representing what channels to listen in, and the identifier and repo associated with that channel.
 - `REPO_ID_MAP` - a dictionary defining what repos to listen for issues on, and the default identifier for issues opened on those repos.
 - `TRACKER_CHAN` - the Discord Channel ID of the channel to post all generated reports.

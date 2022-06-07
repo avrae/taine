@@ -9,7 +9,7 @@ import constants
 from lib import db
 from lib.db import query
 from lib.reports import Report, ReportException, get_next_report_num
-from utils import DiscordEmbedTextPaginator
+from utils import DiscordEmbedTextPaginator, checks
 
 
 class Owner(commands.Cog):
@@ -17,30 +17,27 @@ class Owner(commands.Cog):
         self.bot = bot
 
     @commands.command(aliases=['close'])
+    @checks.is_owner()
     async def resolve(self, ctx, _id, *, msg=''):
         """Owner only - Resolves a report."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
         report = Report.from_id(_id)
         await report.resolve(ctx, msg)
         report.commit()
         await ctx.send(f"Resolved `{report.report_id}`: {report.title}.")
 
     @commands.command(aliases=['open'])
+    @checks.is_owner()
     async def unresolve(self, ctx, _id, *, msg=''):
         """Owner only - Unresolves a report."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
         report = Report.from_id(_id)
         await report.unresolve(ctx, msg)
         report.commit()
         await ctx.send(f"Unresolved `{report.report_id}`: {report.title}.")
 
     @commands.command(aliases=['reassign'])
+    @checks.is_owner()
     async def reidentify(self, ctx, report_id, identifier):
         """Owner only - Changes the identifier of a report."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
 
         identifier = identifier.upper()
         id_num = get_next_report_num(identifier)
@@ -60,10 +57,9 @@ class Owner(commands.Cog):
         await ctx.send(f"Reassigned {report.report_id} as {new_report.report_id}.")
 
     @commands.command()
+    @checks.is_owner()
     async def rename(self, ctx, report_id, *, name):
         """Owner only - Changes the title of a report."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
 
         report = Report.from_id(report_id)
         if report.github_issue:
@@ -75,10 +71,9 @@ class Owner(commands.Cog):
         await ctx.send(f"Renamed {report.report_id} as {report.title}.")
 
     @commands.command(aliases=['pri'])
+    @checks.is_owner()
     async def priority(self, ctx, _id, pri: int, *, msg=''):
         """Owner only - Changes the priority of a report."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
         report = Report.from_id(_id)
 
         report.severity = pri
@@ -92,10 +87,9 @@ class Owner(commands.Cog):
         await ctx.send(f"Changed priority of `{report.report_id}`: {report.title} to P{pri}.")
 
     @commands.group(aliases=['pend'], invoke_without_command=True)
+    @checks.is_owner()
     async def pending(self, ctx, *reports):
         """Owner only - Marks reports as pending for next patch."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
         not_found = 0
         for _id in reports:
             try:
@@ -112,6 +106,7 @@ class Owner(commands.Cog):
             await ctx.send(f"Marked {len(reports)} reports as patch pending. {not_found} reports were not found.")
 
     @pending.command(name="list")
+    @checks.is_owner()
     async def pending_list(self, ctx):
         out = []
         async for report_data in query(db.reports, Attr("pending").eq(True)):
@@ -122,9 +117,8 @@ class Owner(commands.Cog):
         await ctx.send(f"Pending reports: {out_list}\n{detailed}")
 
     @commands.command()
+    @checks.is_owner()
     async def unpend(self, ctx, *reports):
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
         not_found = 0
         for _id in reports:
             try:
@@ -164,10 +158,9 @@ class Owner(commands.Cog):
         return embed
 
     @commands.command(aliases=['release'])
+    @checks.is_owner()
     async def update(self, ctx, build_id, *, msg=""):
         """Owner only - To be run after an update. Resolves all -P2 reports."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
 
         async def resolver(report):
             await report.resolve(ctx, ignore_closed=True)
@@ -179,18 +172,16 @@ class Owner(commands.Cog):
         await ctx.message.delete()
 
     @commands.command()
+    @checks.is_owner()
     async def dryrun(self, ctx, build_id, *, msg=""):
         """Owner only - changelog dryrun."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
         embed = await self._generate_changelog(build_id, msg)
         await ctx.send(embed=embed)
 
     @commands.command()
+    @checks.is_owner()
     async def reset_messages(self, ctx, yes):
         """Owner only - recreate all report messages. Takes some time! Pass "yes" as first arg."""
-        if not ctx.message.author.id == constants.OWNER_ID:
-            return
 
         if yes != 'yes':
             return
