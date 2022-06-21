@@ -376,9 +376,9 @@ class Report:
     async def force_accept(self, ctx):
         await self.setup_github(ctx)
 
-    async def force_deny(self, ctx):
+    async def force_deny(self, ctx, author_id):
         await self.resolve(ctx, "This report was closed. See #bug-discussions or #request-discussions for more "
-                                "information.", author=constants.OWNER_ID)
+                                "information.", author=author_id)
 
     def subscribe(self, ctx):
         """Ensures a user is subscribed to this report."""
