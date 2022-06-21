@@ -6,10 +6,10 @@ from boto3.dynamodb.conditions import Attr
 from discord.ext import commands
 
 import constants
-from lib import db
+from lib import db, checks
 from lib.db import query
 from lib.reports import Report, ReportException, get_next_report_num
-from utils import DiscordEmbedTextPaginator, checks
+from utils import DiscordEmbedTextPaginator
 
 
 class Owner(commands.Cog):
