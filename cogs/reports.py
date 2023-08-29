@@ -184,6 +184,7 @@ class Reports(commands.Cog):
         report_method_getter: Callable[[Report], ReportNoteMethodT]
     ):
         # noinspection PyTypeChecker
+        await inter.defer()
         await self.add_vote_to_report(inter, report, msg, method=report_method_getter(report))
         await inter.send(f"Ok, I've added a note to `{report.report_id}` - {report.title}.",
                          ephemeral=inter.channel.id == report.message)
