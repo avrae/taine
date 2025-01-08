@@ -9,4 +9,7 @@ RUN pip install --user --no-warn-script-location -r requirements.txt
 
 COPY --chown=taine:taine . .
 
-ENTRYPOINT python bot.py
+COPY --chown=taine:taine docker-entrypoint.sh .
+RUN chmod +x docker-entrypoint.sh
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
