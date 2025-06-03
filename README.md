@@ -57,7 +57,6 @@ These environment variables are optional:
 
 - `FR_APPROVE_THRESHOLD` (default 5) - The minimum score for feature requests to be added to GitHub.
 - `FR_DENY_THRESHOLD` (default -3) - The score for feature requests to be automatically closed if they fall under it.
-- `SENTRY_DSN` - DSN for [Sentry](https://sentry.io/welcome/).
 
 ## Running the bot
 

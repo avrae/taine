@@ -4,7 +4,6 @@ disnake[discord]==2.2.1
 fuzzywuzzy[speedup]==0.18.0
 PyGithub==1.55
 python-Levenshtein==0.12.2
-sentry-sdk==1.4.3
 
 # Datadog support
 ddtrace~=2.8.2
