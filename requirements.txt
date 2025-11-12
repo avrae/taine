@@ -6,4 +6,4 @@ PyGithub==1.55
 python-Levenshtein==0.12.2
 
 # Datadog support
-ddtrace==3.16.2
+ddtrace~=3.16.2
