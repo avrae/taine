@@ -401,6 +401,8 @@ class Report:
     def get_channel(self, bot):
         if self.is_bug:
             chan_id = constants.BUG_TRACKER_CHAN
+        # elif self.is_automation: # Uncomment and update the constant if we want to use a separate channel rather than the thread id
+        #     chan_id = constants.AUTOMATION_TRACKER_CHAN
         else:
             chan_id = constants.REQ_TRACKER_CHAN
         return bot.get_channel(chan_id)
