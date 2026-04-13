@@ -204,6 +204,7 @@ class Reports(commands.Cog):
                         repo=repo,
                     )
 
+                    # Post in thread, to avoid this remove channel kwarg and uncomment the separate AUTOMATION_TRACKER_CHAN constant and get_channel logic in Report.get_channel
                     await report.setup_message(self.bot, channel=message.channel)
                     report.commit()
 
