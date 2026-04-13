@@ -204,7 +204,7 @@ class Reports(commands.Cog):
                         repo=repo,
                     )
 
-                    await report.setup_message(self.bot)
+                    await report.setup_message(self.bot, channel=message.channel)
                     report.commit()
 
                     await report.force_accept(ContextProxy(self.bot))

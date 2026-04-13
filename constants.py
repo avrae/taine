@@ -37,7 +37,7 @@ REPO_ID_MAP = {
 
 BUG_TRACKER_CHAN = 834500794429734912
 REQ_TRACKER_CHAN = 834514549356625960
-# AUTOMATION_TRACKER_CHAN = 1492228742079320104 # TODO: update with actual channel ID from Avrae Development server
+# AUTOMATION_TRACKER_CHAN = 1492228742079320104 # Update and uncomment if we want to create a separate channel, for now we'll use the same thread the automation was submitted in
 
 # BUG_TRACKER_CHAN = 834510966498263112
 # REQ_TRACKER_CHAN = 834510952774238208

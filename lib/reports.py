@@ -222,8 +222,10 @@ class Report:
                                                                labels)
         self.github_issue = issue.number
 
-    async def setup_message(self, bot):
-        report_message = await self.get_channel(bot).send(embed=self.get_embed())
+    async def setup_message(self, bot, channel=None):
+        if channel is None:
+            channel = self.get_channel(bot)
+        report_message = await channel.send(embed=self.get_embed())
         self.message = report_message.id
         if not self.is_bug and not self.is_automation:
             await report_message.add_reaction(UPVOTE_REACTION)
@@ -397,9 +399,7 @@ class Report:
             self.subscribers.remove(ctx.author.id)
 
     def get_channel(self, bot):
-        if self.is_automation:
-            chan_id = constants.AUTOMATION_TRACKER_CHAN
-        elif self.is_bug:
+        if self.is_bug:
             chan_id = constants.BUG_TRACKER_CHAN
         else:
             chan_id = constants.REQ_TRACKER_CHAN
