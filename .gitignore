@@ -7,3 +7,5 @@ data/
 temp/
 
 .pytest_cache/
+
+.env

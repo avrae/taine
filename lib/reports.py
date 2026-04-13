@@ -97,7 +97,7 @@ class Report:
 
     def __init__(self, reporter, report_id: str, title: str, severity: int, verification: int, attachments: list,
                  message, upvotes: int = 0, downvotes: int = 0, github_issue: int = None, github_repo: str = None,
-                 subscribers: list = None, is_bug: bool = True, pending: bool = False):
+                 subscribers: list = None, is_bug: bool = True, is_automation: bool = False, pending: bool = False):
         if subscribers is None:
             subscribers = []
         if github_repo is None:
@@ -119,6 +119,7 @@ class Report:
         self.github_issue = int(github_issue)
 
         self.is_bug = is_bug
+        self.is_automation = is_automation
         self.verification = verification
         self.upvotes = upvotes
         self.downvotes = downvotes
@@ -126,12 +127,12 @@ class Report:
         self.pending = pending
 
     @classmethod
-    async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, repo=None):
+    async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, is_automation=False, repo=None):
         subscribers = None
         if isinstance(reporter, (int, Decimal)):
             subscribers = [reporter]
         inst = cls(reporter, report_id, title, 6, 0, attachments, None, subscribers=subscribers, is_bug=is_bug,
-                   github_repo=repo)
+                   is_automation=is_automation, github_repo=repo)
         return inst
 
     @classmethod
@@ -164,7 +165,7 @@ class Report:
             'verification': self.verification, 'upvotes': self.upvotes, 'downvotes': self.downvotes,
             'attachments': [a.to_dict() for a in self.attachments], 'message': self.message,
             'github_issue': self.github_issue, 'github_repo': self.repo, 'subscribers': self.subscribers,
-            'is_bug': self.is_bug, 'pending': self.pending
+            'is_bug': self.is_bug, 'is_automation': self.is_automation, 'pending': self.pending
         }
 
     @classmethod
@@ -209,7 +210,9 @@ class Report:
     async def setup_github(self, ctx):
         if self.github_issue:
             raise ReportException("Issue is already on GitHub.")
-        if self.is_bug:
+        if self.is_automation:
+            labels = ["automation"]
+        elif self.is_bug:
             labels = ["bug"]
         else:
             labels = ["featurereq"]
@@ -222,7 +225,7 @@ class Report:
     async def setup_message(self, bot):
         report_message = await self.get_channel(bot).send(embed=self.get_embed())
         self.message = report_message.id
-        if not self.is_bug:
+        if not self.is_bug and not self.is_automation:
             await report_message.add_reaction(UPVOTE_REACTION)
             await report_message.add_reaction(DOWNVOTE_REACTION)
         await report_message.add_reaction(INFO_REACTION)
@@ -239,7 +242,7 @@ class Report:
         else:
             embed.add_field(name="Added By", value=self.reporter)
         embed.add_field(name="Priority", value=PRIORITY.get(self.severity, "Unknown"))
-        if not self.is_bug:
+        if not self.is_bug and not self.is_automation:
             embed.colour = 0x00ff00
             embed.add_field(name="Votes", value="\u2b06" + str(self.upvotes) + "` | `\u2b07" + str(self.downvotes))
             embed.set_footer(text=f"~report {self.report_id} for details | Vote by reacting")
@@ -278,9 +281,12 @@ class Report:
         if self.attachments:
             msg = self.attachments[0].message
 
-        author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
-        if author:
-            desc = f"{msg}\n\n- {author}"
+        if not self.is_automation:
+            author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
+            if author:
+                desc = f"{msg}\n\n- {author}"
+            else:
+                desc = msg
         else:
             desc = msg
 
@@ -391,8 +397,13 @@ class Report:
             self.subscribers.remove(ctx.author.id)
 
     def get_channel(self, bot):
-        return bot.get_channel(constants.BUG_TRACKER_CHAN) if self.is_bug \
-            else bot.get_channel(constants.REQ_TRACKER_CHAN)
+        if self.is_automation:
+            chan_id = constants.AUTOMATION_TRACKER_CHAN
+        elif self.is_bug:
+            chan_id = constants.BUG_TRACKER_CHAN
+        else:
+            chan_id = constants.REQ_TRACKER_CHAN
+        return bot.get_channel(chan_id)
 
     async def create_thread(self, bot, message_id=None):
         """Creates a thread for this report on the given message, or the report's default message."""
@@ -542,7 +553,9 @@ class Report:
         labels = await GitHubClient.get_instance().get_issue_labels(self.repo, self.github_issue)
         labels = [l for l in labels if l not in MANAGED_LABELS]
         labels.append(PRIORITY_LABELS.get(self.severity))
-        if self.is_bug:
+        if self.is_automation:
+            labels.append("automation")
+        elif self.is_bug:
             labels.append("bug")
         else:
             labels.append("featurereq")
