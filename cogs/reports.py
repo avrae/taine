@@ -1,7 +1,6 @@
 import random
 import logging
 import re
-import json
 import yaml
 from typing import Any, Awaitable, Callable, Optional, Protocol
 
@@ -134,22 +133,14 @@ class Reports(commands.Cog):
                         "```"
                     )
                 else:
-                    # Try to parse as JSON first, then YAML
                     try:
-                        data = json.loads(content)
-                        parsed_format = "json"
-                    except json.JSONDecodeError as json_exc:
-                        # JSON failed, try YAML
-                        try:
-                            data = yaml.safe_load(content)
-                            if not isinstance(data, dict):
-                                static_errors.append(f"Submission must be valid JSON or YAML that parses to an object. (Got {type(data).__name__})")
-                                data = None
-                            else:
-                                parsed_format = "yaml"
-                        except yaml.YAMLError as yaml_exc:
-                            static_errors.append(f"Submission must be valid JSON or YAML. (JSON error: {json_exc}, YAML error: {yaml_exc})")
-                    except Exception as exc:
+                        data = yaml.safe_load(content)
+                        if not isinstance(data, dict):
+                            static_errors.append(f"Submission must be valid JSON or YAML that parses to an object. (Got {type(data).__name__})")
+                            data = None
+                        else:
+                            parsed_format = "json" if content.lstrip().startswith("{") else "yaml"
+                    except yaml.YAMLError as exc:
                         static_errors.append(f"Submission must be valid JSON or YAML. ({exc})")
 
                 # Require both name and automation keys
