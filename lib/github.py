@@ -15,7 +15,7 @@ class GitHubClient:
         self.bug_project = None
         self.feature_project = None
 
-        for repo in org.get_repos("public"):  # build a method to access our repos
+        for repo in org.get_repos("all"):  # build a method to access our repos
             print(f"Loaded repo {repo.full_name}")
             self.repos[repo.full_name] = repo
 

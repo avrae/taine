@@ -20,14 +20,24 @@ BUG_LISTEN_CHANS = [
     }
 ]
 
+AUTOMATION_LISTEN_CHANS = [
+    {
+        "id": 1241495694616035379,
+        "identifier": "AUT",
+        "repo": "avrae/avrae-data-entry",
+    }
+]
+
 # what to label issues opened on given repos as
 REPO_ID_MAP = {
     "avrae/avrae": "AVR",
     "avrae/avrae:feature": "AFR",
+    "avrae/avrae-data-entry": "AUT"
 }
 
 BUG_TRACKER_CHAN = 834500794429734912
 REQ_TRACKER_CHAN = 834514549356625960
+# AUTOMATION_TRACKER_CHAN = 1492228742079320104 # Update and uncomment if we want to create a separate channel, for now we'll use the same thread the automation was submitted in
 
 # BUG_TRACKER_CHAN = 834510966498263112
 # REQ_TRACKER_CHAN = 834510952774238208

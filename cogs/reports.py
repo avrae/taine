@@ -1,5 +1,7 @@
 import random
+import logging
 import re
+import yaml
 from typing import Any, Awaitable, Callable, Optional, Protocol
 
 import cachetools
@@ -10,11 +12,13 @@ from disnake.ext import commands
 import constants
 from lib import db
 from lib.db import query, query_sync
-from lib.misc import search_and_select
+from lib.misc import ContextProxy, search_and_select
 from lib.reports import Attachment, Report, get_next_report_num
+
 
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s*(.+?)(\n|$)")
+AUTOMATION_HEADER_RE = re.compile(r"^\**Automation [Ss]ubmission\**:?\s*$")
 
 
 # ==== typing ====
@@ -59,6 +63,9 @@ def report_param(desc) -> commands.Param:
 
 
 # ==== cog ====
+logger = logging.getLogger("taine.automation")
+
+
 class Reports(commands.Cog):
     search_cache = ReportCache(16, 60)  # meh
 
@@ -68,6 +75,9 @@ class Reports(commands.Cog):
     # ==== event listeners ====
     @commands.Cog.listener()
     async def on_message(self, message):
+        if message.author.bot:
+            return
+        
         identifier = None
         repo = None
         is_bug = None
@@ -83,10 +93,115 @@ class Reports(commands.Cog):
             match = bug_match
             is_bug = True
 
+        # --- Check for regular bug/feature channels ---
         for chan in constants.BUG_LISTEN_CHANS:
             if message.channel.id == chan['id']:
                 identifier = chan['identifier']
                 repo = chan['repo']
+
+        # --- Check for new Automation submissions ---
+        for chan in getattr(constants, "AUTOMATION_LISTEN_CHANS", []):
+
+            # Forum threads channel id is randomly generated per thread, so we need to check against the parent ID if it exists.
+            channel_compare_id = message.channel.id
+            if hasattr(message.channel, 'parent_id'):
+                channel_compare_id = message.channel.parent_id
+
+            if channel_compare_id == chan["id"]:
+                identifier = chan["identifier"]
+                repo = chan["repo"]
+
+                # Check if this is an automation submission (header on first line)
+                lines = message.content.strip().split('\n', 1)
+                first_line = lines[0].strip()
+                
+                # If first line doesn't match header, ignore (allow discussion)
+                if not AUTOMATION_HEADER_RE.match(first_line):
+                    continue
+
+                # Header matched - this is a submission attempt, validate the content
+                static_errors = []
+                data = None
+                content = lines[1].strip() if len(lines) > 1 else ""
+
+                if not content:
+                    static_errors.append(
+                        "Missing automation content. Expected format in JSON or YAML:\n"
+                        "```\n"
+                        "**Automation Submission**\n"
+                        "{\"name\": \"...\", \"automation\": ...}\n"
+                        "```"
+                    )
+                else:
+                    try:
+                        data = yaml.safe_load(content)
+                        if not isinstance(data, dict):
+                            static_errors.append(f"Submission must be valid JSON or YAML that parses to an object. (Got {type(data).__name__})")
+                            data = None
+                        else:
+                            parsed_format = "json" if content.lstrip().startswith("{") else "yaml"
+                    except yaml.YAMLError as exc:
+                        static_errors.append(f"Submission must be valid JSON or YAML. ({exc})")
+
+                # Require both name and automation keys
+                automation_title = None
+                if data is not None and not static_errors:
+                    automation_title = data.get("name")
+                    if not automation_title:
+                        static_errors.append("Submission must include a 'name' field.")
+                    if not data.get("automation"):
+                        static_errors.append("Submission must include an 'automation' field.")
+
+                is_valid = data is not None and not static_errors
+
+                if static_errors:
+                    try:
+                        await message.reply(
+                            f"Your automation could not be accepted:\n"
+                            + "\n".join(static_errors),
+                            mention_author=False,
+                        )
+                    except Exception:
+                        pass
+                    return
+                
+                
+                if is_valid and not static_errors:
+                    title = f"User Automation: '{automation_title}' by {message.author.display_name}"
+                    report_num = get_next_report_num(identifier)
+                    report_id = f"{identifier}-{report_num}"
+                    attach = "\n" + "\n".join(
+                        f"\n{'!' if item.url.lower().endswith(('.png', '.jpg', '.gif')) else ''}"
+                        f"[{item.filename}]({item.url})"
+                        for item in message.attachments
+                    )
+
+                    desc = (
+                        f"### User Submitted Automation\n"
+                        f"**Automation Name:** {automation_title}\n"
+                        f"**Submitted by:** {message.author.display_name}\n\n"
+                        f"```{parsed_format}\n{content}\n```\n"
+                    )
+
+                    desc += "\n\n**Attachments:**\n" + attach if message.attachments else ""
+
+                    report = await Report.new(
+                        message.author.id,
+                        report_id,
+                        title,
+                        [Attachment(message.author.id, desc)],
+                        is_bug=False,
+                        is_automation=True,
+                        repo=repo,
+                    )
+
+                    # Post in thread, to avoid this remove channel kwarg and uncomment the separate AUTOMATION_TRACKER_CHAN constant and get_channel logic in Report.get_channel
+                    await report.setup_message(self.bot, channel=message.channel)
+                    report.commit()
+
+                    await report.force_accept(ContextProxy(self.bot))
+                    await message.add_reaction(random.choice(constants.REACTIONS))
+                    return
 
         if match and identifier:
             title = match.group(1).strip(" *.\n")
