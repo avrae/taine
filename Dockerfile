@@ -1,4 +1,4 @@
-FROM python:3.8-buster
+FROM python:3.14.4
 
 RUN useradd --create-home taine
 USER taine
