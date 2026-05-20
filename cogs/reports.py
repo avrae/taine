@@ -19,6 +19,8 @@ from lib.reports import Attachment, Report, get_next_report_num
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s*(.+?)(\n|$)")
 AUTOMATION_HEADER_RE = re.compile(r"^\**Automation [Ss]ubmission\**:?\s*$")
+CODE_BLOCK_RE = re.compile(r"^```(?:json|yaml|yml)?\s*\n?|\n?```$", re.IGNORECASE)
+VALID_ATTACHMENT_EXTENSIONS = ('.json', '.yaml', '.yml', '.txt')
 
 
 # ==== typing ====
@@ -123,25 +125,49 @@ class Reports(commands.Cog):
                 static_errors = []
                 data = None
                 content = lines[1].strip() if len(lines) > 1 else ""
+                content_source = "message"  # Track where content came from for error messages
 
-                if not content:
+                # Strip code block markers if present (```json, ```yaml, ```, etc.)
+                if content:
+                    content = CODE_BLOCK_RE.sub("", content).strip()
+
+                # If no content in message, check for attachments
+                if not content and message.attachments:
+                    for attachment in message.attachments:
+                        if attachment.filename.lower().endswith(VALID_ATTACHMENT_EXTENSIONS):
+                            try:
+                                file_bytes = await attachment.read()
+                                content = file_bytes.decode('utf-8').strip()
+                                content_source = f"attachment ({attachment.filename})"
+                                break
+                            except Exception as e:
+                                static_errors.append(f"Failed to read attachment {attachment.filename}: {e}")
+                    
+                    # If we had attachments but none were valid
+                    if not content and not static_errors:
+                        static_errors.append(
+                            f"No valid attachment found. Supported formats: {', '.join(VALID_ATTACHMENT_EXTENSIONS)}"
+                        )
+
+                if not content and not static_errors:
                     static_errors.append(
                         "Missing automation content. Expected format in JSON or YAML:\n"
                         "```\n"
                         "**Automation Submission**\n"
                         "{\"name\": \"...\", \"automation\": ...}\n"
-                        "```"
+                        "```\n"
+                        "You can also attach a .json, .yaml, or .txt file."
                     )
-                else:
+                elif content and not static_errors:
                     try:
                         data = yaml.safe_load(content)
                         if not isinstance(data, dict):
-                            static_errors.append(f"Submission must be valid JSON or YAML that parses to an object. (Got {type(data).__name__})")
+                            static_errors.append(f"Submission from {content_source} must be valid JSON or YAML that parses to an object. (Got {type(data).__name__})")
                             data = None
                         else:
                             parsed_format = "json" if content.lstrip().startswith("{") else "yaml"
                     except yaml.YAMLError as exc:
-                        static_errors.append(f"Submission must be valid JSON or YAML. ({exc})")
+                        static_errors.append(f"Submission from {content_source} must be valid JSON or YAML. ({exc})")
 
                 # Require both name and automation keys
                 automation_title = None
