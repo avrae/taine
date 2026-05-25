@@ -3,7 +3,7 @@ cachetools==4.2.4
 disnake[discord]==2.2.1
 fuzzywuzzy[speedup]==0.18.0
 PyGithub==1.55
-python-Levenshtein==0.27.3
+python-Levenshtein==0.12.2
 PyYAML==6.0.1
 
 # Datadog support
