@@ -1,9 +1,9 @@
 import copy
 import time
 
-import discord
+import disnake
 from boto3.dynamodb.conditions import Attr
-from discord.ext import commands
+from disnake.ext import commands
 
 import constants
 from lib import db, checks
@@ -153,7 +153,7 @@ class Owner(commands.Cog):
 
         changelog.add(msg)
 
-        embed = discord.Embed(title=f"**Build {build_id}**", colour=0x87d37c)
+        embed = disnake.Embed(title=f"**Build {build_id}**", colour=0x87d37c)
         changelog.write_to(embed)
         return embed
 

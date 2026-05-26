@@ -3,7 +3,7 @@ import textwrap
 import traceback
 from contextlib import redirect_stdout
 
-from discord.ext import commands
+from disnake.ext import commands
 
 
 class REPL(commands.Cog):

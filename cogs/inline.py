@@ -1,6 +1,6 @@
 import re
 
-from discord.ext import commands
+from disnake.ext import commands
 
 import constants
 from lib.reports import Report, ReportException

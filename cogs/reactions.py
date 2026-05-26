@@ -1,7 +1,7 @@
 import logging
 
-import discord
-from discord.ext import commands
+import disnake
+from disnake.ext import commands
 
 import constants
 from lib.misc import ContextProxy
@@ -82,7 +82,7 @@ class Reactions(commands.Cog):
     async def toggle_role(member, **kwargs):
         if NO_REPORTS_ROLE_ID in [r.id for r in member.roles]:  # this member is not allowed to self-assign
             return
-        role = discord.utils.get(member.guild.roles, **kwargs)
+        role = disnake.utils.get(member.guild.roles, **kwargs)
         if role in member.roles:
             await member.remove_roles(role)
             await member.send(f"Okay! You no longer have {role.name}.")
@@ -100,7 +100,7 @@ class Reactions(commands.Cog):
         try:
             # add the user
             await thread.add_user(member)
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
 

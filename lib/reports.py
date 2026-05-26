@@ -3,7 +3,7 @@ import os
 import re
 from decimal import Decimal
 
-import discord
+import disnake
 from boto3.dynamodb.conditions import Key
 from cachetools import LRUCache
 
@@ -238,7 +238,7 @@ class Report:
         ddb.reports.put_item(Item=self.to_dict())
 
     def get_embed(self, detailed=False, guild=None):
-        embed = discord.Embed()
+        embed = disnake.Embed()
         if isinstance(self.reporter, (int, Decimal)):
             embed.add_field(name="Added By", value=f"<@{self.reporter}>")
         else:
@@ -423,7 +423,7 @@ class Report:
         try:
             thread = await channel.create_thread(name=thread_name, message=message)
             # remove any system message
-            await channel.purge(limit=1, check=lambda m: m.type == discord.MessageType.thread_created, bulk=False)
+            await channel.purge(limit=1, check=lambda m: m.type == disnake.MessageType.thread_created, bulk=False)
             # send the full report detail and pin it
             msg = await thread.send(embed=self.get_embed(detailed=True, guild=channel.guild))
             await msg.pin()
@@ -431,7 +431,7 @@ class Report:
             reporter = bot.get_user(self.reporter)
             if reporter is not None:
                 await thread.add_user(reporter)
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             log.warning(f"error in create thread: {e}")
         return thread
 
@@ -449,7 +449,7 @@ class Report:
         if thread is None:
             try:
                 thread = await bot.fetch_channel(message_id)
-            except discord.NotFound:
+            except disnake.NotFound:
                 pass
 
         if thread is None and create:
@@ -469,7 +469,7 @@ class Report:
         else:
             try:
                 msg = await self.get_channel(ctx.bot).fetch_message(self.message)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 msg = None
             if msg:
                 Report.message_cache[self.message] = msg
@@ -482,7 +482,7 @@ class Report:
                 await msg_.delete()
                 if self.message in Report.message_cache:
                     del Report.message_cache[self.message]
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
             finally:
                 self.message = MESSAGE_SENTINEL
@@ -576,7 +576,7 @@ class Report:
         await GitHubClient.get_instance().rename_issue(self.repo, self.github_issue, f"{self.report_id} {self.title}")
 
     async def notify_subscribers(self, ctx, msg):
-        embed = discord.Embed(
+        embed = disnake.Embed(
             title=f"`{self.report_id}` - {self.title}",
             description=msg
         )
@@ -586,7 +586,7 @@ class Report:
             try:
                 member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
                 await member.send(embed=embed)
-            except (StopIteration, discord.HTTPException):
+            except (StopIteration, disnake.HTTPException):
                 continue
 
 
