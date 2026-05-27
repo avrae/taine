@@ -1,7 +1,7 @@
 import asyncio
 
 from aiohttp import web
-from discord.ext import commands
+from disnake.ext import commands
 
 import constants
 from lib.github import GitHubClient
@@ -170,7 +170,7 @@ class Web(commands.Cog):
         handler = app.make_handler()
         server = loop.create_server(handler, host, port, ssl=ssl_context,
                                     backlog=backlog)
-        loop.run_until_complete(asyncio.gather(server, app.startup(), loop=loop))
+        loop.run_until_complete(asyncio.gather(server, app.startup()))
 
         scheme = 'https' if ssl_context else 'http'
         print("======== Running on {scheme}://{host}:{port}/ ========".format(scheme=scheme, host=host, port=port))

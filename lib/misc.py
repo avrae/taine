@@ -2,7 +2,7 @@ import asyncio
 import random
 from itertools import zip_longest
 
-import discord
+import disnake
 from fuzzywuzzy import fuzz, process
 
 
@@ -147,7 +147,7 @@ async def get_selection(ctx, choices, delete=True, pm=False, message=None, force
     for n in range(200):
         _choices = pages[page]
         names = [o[0] for o in _choices if o]
-        embed = discord.Embed()
+        embed = disnake.Embed()
         embed.title = "Multiple Matches Found"
         select_str = "Which one were you looking for? (Type the number or \"c\" to cancel)\n"
         if len(pages) > 1:
