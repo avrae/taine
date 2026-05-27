@@ -205,7 +205,7 @@ class Reports(commands.Cog):
                     desc = (
                         f"### User Submitted Automation\n"
                         f"**Automation Name:** {automation_title}\n"
-                        f"**Submitted by:** {message.author.display_name}\n\n"
+                        f"**Submitted by:** [{message.author.display_name}]({message.jump_url})\n\n"
                         f"```{parsed_format}\n{content}\n```\n"
                     )
 
