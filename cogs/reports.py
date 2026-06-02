@@ -6,8 +6,11 @@ from typing import Any, Awaitable, Callable, Optional, Protocol
 
 import cachetools
 import disnake
+from automation_common import validation
+from automation_common.validation.utils import format_validation_error
 from boto3.dynamodb.conditions import Attr
 from disnake.ext import commands
+from pydantic import ValidationError
 
 import constants
 from lib import db
@@ -20,6 +23,10 @@ BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s*(.+?)(\n|$)")
 AUTOMATION_HEADER_RE = re.compile(r"^\**Automation [Ss]ubmission\**:?\s*$")
 CODE_BLOCK_RE = re.compile(r"^```(?:json|yaml|yml)?\s*\n?|\n?```$", re.IGNORECASE)
+# Strips the trailing "(type=...)" machine-readable detail from each validation error line,
+# leaving the human-readable message. Anchored to end-of-line and greedy so nested parens
+# in the error context (e.g. permitted=('a', 'b')) are consumed too.
+VALIDATION_TYPE_RE = re.compile(r"\s*\(type=[^\n]*\)\s*$", re.MULTILINE)
 VALID_ATTACHMENT_EXTENSIONS = ('.json', '.yaml', '.yml', '.txt')
 
 
@@ -178,13 +185,24 @@ class Reports(commands.Cog):
                     if not data.get("automation"):
                         static_errors.append("Submission must include an 'automation' field.")
 
+                # Validate the automation against the avrae automation-common schema
+                if data is not None and not static_errors:
+                    try:
+                        validation.validate(data["automation"])
+                    except ValidationError as exc:
+                        formatted = VALIDATION_TYPE_RE.sub("", format_validation_error(exc))
+                        static_errors.append(
+                            f"Submission from {content_source} has invalid automation:\n"
+                            f"```\n{formatted}\n```"
+                        )
+
                 is_valid = data is not None and not static_errors
 
                 if static_errors:
                     try:
                         await message.reply(
-                            f"Your automation could not be accepted:\n"
-                            + "\n".join(static_errors),
+                            (f"Your automation could not be accepted:\n"
+                             + "\n".join(static_errors))[:2000],
                             mention_author=False,
                         )
                     except Exception:

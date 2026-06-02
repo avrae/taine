@@ -1,3 +1,4 @@
+avrae-automation-common @ git+https://github.com/avrae/automation-common.git@v4.1.9
 boto3==1.43.14
 cachetools==4.2.4
 disnake[discord]==2.12.0
