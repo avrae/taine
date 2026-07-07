@@ -1,15 +1,26 @@
-FROM python:3.14.4
+FROM dhi.io/python:3.14.6-alpine3.24-dev AS build
 
-RUN useradd --create-home taine
-USER taine
-WORKDIR /home/taine
+RUN apk add --no-cache git
 
-COPY --chown=taine:taine requirements.txt .
-RUN pip install --user --no-warn-script-location -r requirements.txt
+WORKDIR /app
 
-COPY --chown=taine:taine . .
+COPY requirements.txt .
 
-COPY --chown=taine:taine docker-entrypoint.sh .
-RUN chmod +x docker-entrypoint.sh
+RUN python -m venv /app/venv \
+    && /app/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+FROM dhi.io/python:3.14.6-alpine3.24
+
+WORKDIR /app
+
+COPY --from=build /app/venv /app/venv
+
+COPY --chown=nonroot:nonroot . .
+
+USER nonroot
+
+COPY --from=build --chown=nonroot:nonroot /app /app
+
+ENV PATH="/app/venv/bin:$PATH"
+
+CMD ["ddtrace-run", "python", "bot.py"]
