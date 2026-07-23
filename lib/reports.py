@@ -59,6 +59,7 @@ CLOSE_THRESHOLD = int(os.environ.get("FR_DENY_THRESHOLD", -3))
 # and falsy, which is compatible with old None checks
 MESSAGE_SENTINEL = 0
 GITHUB_ISSUE_SENTINEL = 0
+THREAD_ID_SENTINEL = 0
 log = logging.getLogger(__name__)
 
 
@@ -97,7 +98,8 @@ class Report:
 
     def __init__(self, reporter, report_id: str, title: str, severity: int, verification: int, attachments: list,
                  message, upvotes: int = 0, downvotes: int = 0, github_issue: int = None, github_repo: str = None,
-                 subscribers: list = None, is_bug: bool = True, is_automation: bool = False, pending: bool = False):
+                 subscribers: list = None, is_bug: bool = True, is_automation: bool = False, pending: bool = False,
+                 thread_id: int = None, automation_name: str = None):
         if subscribers is None:
             subscribers = []
         if github_repo is None:
@@ -106,6 +108,8 @@ class Report:
             message = 0
         if github_issue is None:
             github_issue = 0
+        if thread_id is None:
+            thread_id = THREAD_ID_SENTINEL
         self.reporter = reporter
         self.report_id = report_id
         self.title = title
@@ -125,6 +129,9 @@ class Report:
         self.downvotes = downvotes
 
         self.pending = pending
+
+        self.thread_id = int(thread_id)
+        self.automation_name = automation_name
 
     @classmethod
     async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, is_automation=False, repo=None):
@@ -165,7 +172,8 @@ class Report:
             'verification': self.verification, 'upvotes': self.upvotes, 'downvotes': self.downvotes,
             'attachments': [a.to_dict() for a in self.attachments], 'message': self.message,
             'github_issue': self.github_issue, 'github_repo': self.repo, 'subscribers': self.subscribers,
-            'is_bug': self.is_bug, 'is_automation': self.is_automation, 'pending': self.pending
+            'is_bug': self.is_bug, 'is_automation': self.is_automation, 'pending': self.pending,
+            'thread_id': self.thread_id, 'automation_name': self.automation_name
         }
 
     @classmethod
