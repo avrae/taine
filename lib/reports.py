@@ -9,6 +9,7 @@ from cachetools import LRUCache
 
 import constants
 import lib.db as ddb
+from lib import dedup
 from lib.github import GitHubClient
 
 PRIORITY = {
@@ -134,12 +135,14 @@ class Report:
         self.automation_name = automation_name
 
     @classmethod
-    async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, is_automation=False, repo=None):
+    async def new(cls, reporter, report_id: str, title: str, attachments: list, is_bug=True, is_automation=False,
+                 repo=None, thread_id=None, automation_name=None):
         subscribers = None
         if isinstance(reporter, (int, Decimal)):
             subscribers = [reporter]
         inst = cls(reporter, report_id, title, 6, 0, attachments, None, subscribers=subscribers, is_bug=is_bug,
-                   is_automation=is_automation, github_repo=repo)
+                   is_automation=is_automation, github_repo=repo, thread_id=thread_id,
+                   automation_name=automation_name)
         return inst
 
     @classmethod
@@ -208,6 +211,19 @@ class Report:
         except IndexError:
             raise ReportException("Report not found.")
 
+    @classmethod
+    async def find_existing_submission(cls, repo, thread_id, user_id, automation_name):
+        """Returns the Report for an existing open PR for this submission key, or None if there isn't one."""
+        branch = dedup.branch_name(thread_id, user_id, automation_name)
+        pr = await GitHubClient.get_instance().find_open_pr_for_branch(repo, branch)
+        if pr is None:
+            return None
+        try:
+            return cls.from_github(repo, pr.number)
+        except ReportException:
+            log.warning(f"Open PR #{pr.number} on {repo} for branch {branch} has no matching Report")
+            return None
+
     def is_open(self):
         return self.severity >= 0
 
@@ -229,6 +245,39 @@ class Report:
         issue = await GitHubClient.get_instance().create_issue(self.repo, f"{self.report_id} {self.title}", desc,
                                                                labels)
         self.github_issue = issue.number
+
+    def _get_automation_config(self):
+        """Returns the (target_folder, base_branch) config for this report's repo."""
+        for chan in constants.AUTOMATION_LISTEN_CHANS:
+            if chan["repo"] == self.repo:
+                return chan["target_folder"], chan["base_branch"]
+        raise ReportException(f"No automation config found for repo {self.repo}.")
+
+    def _get_branch_and_path(self):
+        """Returns the (branch, file path) for this report's submission branch."""
+        target_folder, _ = self._get_automation_config()
+        branch = dedup.branch_name(self.thread_id, self.reporter, self.automation_name)
+        path = target_folder + branch.split("/")[-1] + ".json"
+        return branch, path
+
+    async def setup_pr(self, ctx, file_content):
+        """Opens a draft PR on a new branch for this automation submission."""
+        _, base_branch = self._get_automation_config()
+        branch, path = self._get_branch_and_path()
+        gh = GitHubClient.get_instance()
+        await gh.get_or_create_branch(self.repo, branch, base_branch)
+        await gh.create_or_update_file(self.repo, branch, path, file_content,
+                                       f"Add user-submitted automation: {self.automation_name}")
+        # github_issue is reused here to store the PR number for automations
+        pr = await gh.create_draft_pr(self.repo, branch, base_branch, f"{self.report_id} {self.title}",
+                                      self.get_github_desc(ctx))
+        self.github_issue = pr.number
+
+    async def update_pr(self, ctx, file_content):
+        """Pushes an updated submission file to this report's existing PR branch."""
+        branch, path = self._get_branch_and_path()
+        await GitHubClient.get_instance().create_or_update_file(
+            self.repo, branch, path, file_content, f"Update user-submitted automation: {self.automation_name}")
 
     async def setup_message(self, bot, channel=None):
         if channel is None:
@@ -390,6 +439,9 @@ class Report:
         await self.notify_subscribers(ctx, f"New note by <@{author}>: {msg}")
 
     async def force_accept(self, ctx):
+        # automations are opened as draft PRs at submission time, not issues
+        if self.is_automation:
+            return
         await self.setup_github(ctx)
 
     async def force_deny(self, ctx, author_id):
@@ -468,6 +520,17 @@ class Report:
             await thread.edit(archived=False)
 
         return thread
+
+    async def notify_thread(self, bot, msg):
+        """Sends msg to this report's submission thread, resolved directly by thread_id."""
+        channel = bot.get_channel(self.thread_id)
+        if not channel:
+            try:
+                channel = await bot.fetch_channel(self.thread_id)
+            except disnake.NotFound:
+                channel = None
+        if channel:
+            await channel.send(msg)
 
     async def get_message(self, ctx):
         if self.message is MESSAGE_SENTINEL:
