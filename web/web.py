@@ -192,6 +192,8 @@ class Web(commands.Cog):
             msg = f"❌ Automated tests failed for **{name}**."
             if result["reason"]:
                 msg += f"\n> {result['reason']}"
+            msg += (f"\nTo try again, post an updated **{name}** submission in this thread — "
+                    f"it updates your existing submission instead of opening a new one.")
         await report.notify_thread(self.bot, msg)
         return True
 
