@@ -153,8 +153,7 @@ class GitHubClient:
                 if e.status != 404:
                     raise
                 base_branch = repo.get_branch(base)
-                repo.create_git_ref(ref=f"refs/heads/{branch}", sha=base_branch.commit.sha)
-                return repo.get_branch(branch)
+                return repo.create_git_ref(ref=f"refs/heads/{branch}", sha=base_branch.commit.sha)
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
