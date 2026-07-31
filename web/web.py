@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from aiohttp import web
 from disnake.ext import commands
@@ -12,6 +13,23 @@ PRI_LABEL_NAMES = ("P0", "P1", "P2", "P3", "P4", "P5")
 BUG_LABEL = "bug"
 FEATURE_LABEL = "featurereq"
 EXEMPT_LABEL = "enhancement"
+
+# structured CI-result comment posted by avrae-data-entry's automation-test workflow (producer side of this contract)
+AUTOMATION_RESULT_RE = re.compile(
+    r"AUTOMATION_TEST_RESULT:\s*(?P<status>PASS|FAIL)"
+    r"(?:\s*\r?\n\s*Reason:\s*(?P<reason>.*))?",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def parse_automation_test_result(body):
+    """Parses a structured automation CI-result comment; returns {status, reason} or None."""
+    if not body:
+        return None
+    match = AUTOMATION_RESULT_RE.search(body)
+    if match is None:
+        return None
+    return {"status": match.group("status").upper(), "reason": (match.group("reason") or "").strip()}
 
 
 class Web(commands.Cog):
@@ -135,7 +153,7 @@ class Web(commands.Cog):
             await report.update(ctx)
             report.commit()
 
-    # ===== github: issue_comment event =====
+    # ===== github: issue_comment event (also fires for PR comments) =====
     async def issue_comment_handler(self, data):
         issue = data['issue']
         issue_num = issue['number']
@@ -153,9 +171,31 @@ class Web(commands.Cog):
             except ReportException:
                 return  # oh well
 
+            # automation PR comments: only a structured CI result is mirrored to Discord (to the thread)
+            if report.is_automation:
+                await self.relay_automation_test_result(report, comment['body'])
+                return
+
             await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), add_to_github=False)
             await report.update(ContextProxy(self.bot))
             report.commit()
+
+    async def relay_automation_test_result(self, report, body):
+        """Relays a structured automation CI result to the submission thread; returns True if handled."""
+        result = parse_automation_test_result(body)
+        if result is None:
+            return False
+        name = report.automation_name or report.title
+        if result["status"] == "PASS":
+            msg = f"✅ Automated tests passed for **{name}**."
+        else:
+            msg = f"❌ Automated tests failed for **{name}**."
+            if result["reason"]:
+                msg += f"\n> {result['reason']}"
+            msg += (f"\nTo try again, post an updated **{name}** submission in this thread — "
+                    f"it updates your existing submission instead of opening a new one.")
+        await report.notify_thread(self.bot, msg)
+        return True
 
     def run_app(self, app, *, host='0.0.0.0', port=None, ssl_context=None, backlog=128):
         """Run an app"""

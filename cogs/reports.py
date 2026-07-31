@@ -1,3 +1,4 @@
+import json
 import random
 import logging
 import re
@@ -211,6 +212,19 @@ class Reports(commands.Cog):
                 
                 
                 if is_valid and not static_errors:
+                    thread_id = message.channel.id
+                    file_content = json.dumps([data], indent=2)
+
+                    existing = await Report.find_existing_submission(
+                        repo, thread_id, message.author.id, automation_title)
+
+                    if existing is not None:
+                        await existing.update_pr(ContextProxy(self.bot), file_content)
+                        await existing.notify_thread(
+                            self.bot, f"↻ Updated your **{automation_title}** submission with the latest version.")
+                        await message.add_reaction(random.choice(constants.REACTIONS))
+                        return
+
                     title = f"User Automation: '{automation_title}' by {message.author.display_name}"
                     report_num = get_next_report_num(identifier)
                     report_id = f"{identifier}-{report_num}"
@@ -237,13 +251,15 @@ class Reports(commands.Cog):
                         is_bug=False,
                         is_automation=True,
                         repo=repo,
+                        thread_id=thread_id,
+                        automation_name=automation_title,
                     )
 
                     # Post in thread, to avoid this remove channel kwarg and uncomment the separate AUTOMATION_TRACKER_CHAN constant and get_channel logic in Report.get_channel
                     await report.setup_message(self.bot, channel=message.channel)
+                    await report.setup_pr(ContextProxy(self.bot), file_content)
                     report.commit()
 
-                    await report.force_accept(ContextProxy(self.bot))
                     await message.add_reaction(random.choice(constants.REACTIONS))
                     return
 

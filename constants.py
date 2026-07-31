@@ -25,6 +25,8 @@ AUTOMATION_LISTEN_CHANS = [
         "id": 1241495694616035379,
         "identifier": "AUT",
         "repo": "avrae/avrae-data-entry",
+        "target_folder": "user-automations/",
+        "base_branch": "main",
     }
 ]
 

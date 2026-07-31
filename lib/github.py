@@ -1,6 +1,6 @@
 import asyncio
 
-from github import Github
+from github import Github, GithubException
 from github.Repository import Repository
 
 
@@ -137,5 +137,63 @@ class GitHubClient:
                 first_col = self.feature_project.get_columns()[0]
 
             first_col.create_card(content_id=issue_num, content_type="Issue")
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
+
+    async def get_or_create_branch(self, repo, branch, base):
+        """Returns the branch named `branch` on repo, creating it from `base`'s current
+        commit if it doesn't already exist."""
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
+        def _():
+            try:
+                return repo.get_branch(branch)
+            except GithubException as e:
+                if e.status != 404:
+                    raise
+                base_branch = repo.get_branch(base)
+                return repo.create_git_ref(ref=f"refs/heads/{branch}", sha=base_branch.commit.sha)
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
+
+    async def create_or_update_file(self, repo, branch, path, content, message):
+        """Creates the file at `path` on `branch`, or updates it if it already exists."""
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
+        def _():
+            # read-then-write (not atomic): serialize per-branch if concurrent resubmissions race here
+            try:
+                existing = repo.get_contents(path, ref=branch)
+                return repo.update_file(path, message, content, existing.sha, branch=branch)
+            except GithubException as e:
+                if e.status != 404:
+                    raise
+                return repo.create_file(path, message, content, branch=branch)
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
+
+    async def create_draft_pr(self, repo, branch, base, title, body):
+        """Opens a draft PR from `branch` into `base`."""
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
+        def _():
+            return repo.create_pull(title=title, body=body, head=branch, base=base, draft=True)
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
+
+    async def find_open_pr_for_branch(self, repo, branch):
+        """Returns the open PR whose head is `branch`, or None if no such PR exists."""
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
+        def _():
+            head = f"{repo.owner.login}:{branch}"
+            for pr in repo.get_pulls(state="open", head=head):
+                if pr.head.ref == branch:
+                    return pr
+            return None
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
