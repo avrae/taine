@@ -21,6 +21,13 @@ AUTOMATION_RESULT_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# structured resolution-failure comment posted by avrae-data-entry's resolve workflow on the
+# original submission PR, when the automation's name couldn't be matched against gamedata
+AUTOMATION_RESOLUTION_FAILED_RE = re.compile(
+    r"AUTOMATION_RESOLUTION_FAILED:\s*(?P<reason>.*)",
+    re.IGNORECASE | re.DOTALL,
+)
+
 
 def parse_automation_test_result(body):
     """Parses a structured automation CI-result comment; returns {status, reason} or None."""
@@ -30,6 +37,16 @@ def parse_automation_test_result(body):
     if match is None:
         return None
     return {"status": match.group("status").upper(), "reason": (match.group("reason") or "").strip()}
+
+
+def parse_automation_resolution_failed(body):
+    """Parses a structured resolution-failure comment; returns {reason} or None."""
+    if not body:
+        return None
+    match = AUTOMATION_RESOLUTION_FAILED_RE.search(body)
+    if match is None:
+        return None
+    return {"reason": (match.group("reason") or "").strip()}
 
 
 class Web(commands.Cog):
@@ -171,31 +188,44 @@ class Web(commands.Cog):
             except ReportException:
                 return  # oh well
 
-            # automation PR comments: only a structured CI result is mirrored to Discord (to the thread)
+            # automation PR comments: only a structured CI/resolution result is mirrored to Discord (to the thread)
             if report.is_automation:
-                await self.relay_automation_test_result(report, comment['body'])
+                await self.relay_automation_result(report, comment['body'])
                 return
 
             await report.addnote(f"GitHub - {username}", comment['body'], ContextProxy(self.bot), add_to_github=False)
             await report.update(ContextProxy(self.bot))
             report.commit()
 
-    async def relay_automation_test_result(self, report, body):
-        """Relays a structured automation CI result to the submission thread; returns True if handled."""
-        result = parse_automation_test_result(body)
-        if result is None:
-            return False
+    async def relay_automation_result(self, report, body):
+        """Relays a structured automation result comment to the submission thread; returns True if handled."""
         name = report.automation_name or report.title
-        if result["status"] == "PASS":
-            msg = f"✅ Automated tests passed for **{name}**."
-        else:
-            msg = f"❌ Automated tests failed for **{name}**."
-            if result["reason"]:
-                msg += f"\n> {result['reason']}"
-            msg += (f"\nTo try again, post an updated **{name}** submission in this thread — "
-                    f"it updates your existing submission instead of opening a new one.")
-        await report.notify_thread(self.bot, msg)
-        return True
+
+        test_result = parse_automation_test_result(body)
+        if test_result is not None:
+            if test_result["status"] == "PASS":
+                msg = f"✅ Automated tests passed for **{name}**."
+            else:
+                msg = f"❌ Automated tests failed for **{name}**."
+                if test_result["reason"]:
+                    msg += f"\n> {test_result['reason']}"
+                msg += (f"\nTo try again, post an updated **{name}** submission in this thread — "
+                        f"it updates your existing submission instead of opening a new one.")
+            await report.notify_thread(self.bot, msg)
+            return True
+
+        resolution_failure = parse_automation_resolution_failed(body)
+        if resolution_failure is not None:
+            msg = f"⚠️ Couldn't find a matching ability named **{name}** in the compendium."
+            if resolution_failure["reason"]:
+                msg += f"\n> {resolution_failure['reason']}"
+            msg += (f"\nCheck the spelling, or add a disambiguating source like \"{name} (Source)\", "
+                    f"then post an updated submission in this thread — since the name changes, "
+                    f"it'll go through as a new submission rather than updating this one.")
+            await report.notify_thread(self.bot, msg)
+            return True
+
+        return False
 
     def run_app(self, app, *, host='0.0.0.0', port=None, ssl_context=None, backlog=128):
         """Run an app"""
