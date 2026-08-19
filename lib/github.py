@@ -174,6 +174,22 @@ class GitHubClient:
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
 
+    async def get_file_content(self, repo, branch, path):
+        """Returns the decoded text content of the file at `path` on `branch`, or None if it
+        doesn't exist."""
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
+        def _():
+            try:
+                return repo.get_contents(path, ref=branch).decoded_content.decode("utf-8")
+            except GithubException as e:
+                if e.status != 404:
+                    raise
+                return None
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)
+
     async def create_draft_pr(self, repo, branch, base, title, body):
         """Opens a draft PR from `branch` into `base`."""
         if not isinstance(repo, Repository):
