@@ -22,7 +22,11 @@ from lib.reports import Attachment, Report, get_next_report_num
 
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s*(.+?)(\n|$)")
-AUTOMATION_HEADER_RE = re.compile(r"^\**Automation [Ss]ubmission\**:?\s*$")
+# entity_type defaults to Action when omitted -- a strict superset of the original header,
+# every message that matched before still matches.
+AUTOMATION_HEADER_RE = re.compile(
+    r"^\**Automation Submission\**\s*:?\s*(?P<entity_type>Monster|Spell|Action)?\s*\**\s*$", re.IGNORECASE
+)
 CODE_BLOCK_RE = re.compile(r"^```(?:json|yaml|yml)?\s*\n?|\n?```$", re.IGNORECASE)
 # Strips the trailing "(type=...)" machine-readable detail from each validation error line,
 # leaving the human-readable message. Anchored to end-of-line and greedy so nested parens
@@ -124,10 +128,12 @@ class Reports(commands.Cog):
                 # Check if this is an automation submission (header on first line)
                 lines = message.content.strip().split('\n', 1)
                 first_line = lines[0].strip()
-                
+
                 # If first line doesn't match header, ignore (allow discussion)
-                if not AUTOMATION_HEADER_RE.match(first_line):
+                header_match = AUTOMATION_HEADER_RE.match(first_line)
+                if not header_match:
                     continue
+                entity_type = (header_match.group("entity_type") or "action").lower()
 
                 # Header matched - this is a submission attempt, validate the content
                 static_errors = []
@@ -150,7 +156,7 @@ class Reports(commands.Cog):
                                 break
                             except Exception as e:
                                 static_errors.append(f"Failed to read attachment {attachment.filename}: {e}")
-                    
+
                     # If we had attachments but none were valid
                     if not content and not static_errors:
                         static_errors.append(
@@ -164,6 +170,18 @@ class Reports(commands.Cog):
                         "**Automation Submission**\n"
                         "{\"name\": \"...\", \"automation\": ...}\n"
                         "```\n"
+                        "For a Spell, add a type to the header (same shape as above):\n"
+                        "```\n"
+                        "**Automation Submission: Spell**\n"
+                        "{\"name\": \"...\", \"automation\": ...}\n"
+                        "```\n"
+                        "For a Monster attack, add a type to the header and say which monster it belongs to:\n"
+                        "```\n"
+                        "**Automation Submission: Monster**\n"
+                        "{\"monster\": \"...\", \"name\": \"...\", \"automation\": ...}\n"
+                        "```\n"
+                        "Submit one attack per message -- if a monster has multiple attacks to automate, "
+                        "send a separate message for each.\n"
                         "You can also attach a .json, .yaml, or .txt file."
                     )
                 elif content and not static_errors:
@@ -177,19 +195,41 @@ class Reports(commands.Cog):
                     except yaml.YAMLError as exc:
                         static_errors.append(f"Submission from {content_source} must be valid JSON or YAML. ({exc})")
 
-                # Require both name and automation keys
+                # Require a name and an automation payload; Monster additionally requires a
+                # 'monster' field (which monster this one attack belongs to) and must NOT use
+                # an 'attacks' list -- one attack per message, see the format spec.
                 automation_title = None
+                automation_object = None
+                monster_name = None
                 if data is not None and not static_errors:
+                    if entity_type == "monster":
+                        if "attacks" in data:
+                            static_errors.append(
+                                "Monster submissions don't use an 'attacks' list -- submit one attack "
+                                "per message: `{\"monster\": \"...\", \"name\": \"...\", \"automation\": ...}`."
+                            )
+                        monster_name = data.get("monster")
+                        if not monster_name:
+                            static_errors.append(
+                                "Monster submission must include a 'monster' field naming the monster this attack belongs to."
+                            )
+                    elif "attacks" in data:
+                        static_errors.append(
+                            f"Submission declared as {entity_type.capitalize()} but has an 'attacks' field, "
+                            "which only Monster submissions use -- did you mean to declare this as Monster?"
+                        )
+
                     automation_title = data.get("name")
                     if not automation_title:
                         static_errors.append("Submission must include a 'name' field.")
-                    if not data.get("automation"):
+                    automation_object = data.get("automation")
+                    if not automation_object:
                         static_errors.append("Submission must include an 'automation' field.")
 
                 # Validate the automation against the avrae automation-common schema
                 if data is not None and not static_errors:
                     try:
-                        validation.validate(data["automation"])
+                        validation.validate(automation_object)
                     except ValidationError as exc:
                         formatted = VALIDATION_TYPE_RE.sub("", format_validation_error(exc))
                         static_errors.append(
@@ -213,15 +253,33 @@ class Reports(commands.Cog):
                 
                 if is_valid and not static_errors:
                     thread_id = message.channel.id
-                    file_content = json.dumps([data], indent=2)
+                    if entity_type == "monster":
+                        # Reconstruct the {name, attacks: [...]} shape the rest of the pipeline
+                        # (branch/file routing, merge-by-attack-name, resolve) already expects --
+                        # the submitter only ever sends one attack per message.
+                        file_content = json.dumps(
+                            [{"name": monster_name, "attacks": [{"name": automation_title, "automation": automation_object}]}],
+                            indent=2,
+                        )
+                    else:
+                        file_content = json.dumps([data], indent=2)
 
-                    existing = await Report.find_existing_submission(
+                    existing, existing_entity_type = await Report.find_existing_submission(
                         repo, thread_id, message.author.id, automation_title)
 
                     if existing is not None:
-                        await existing.update_pr(ContextProxy(self.bot), file_content)
-                        await existing.notify_thread(
-                            self.bot, f"↻ Updated your **{automation_title}** submission with the latest version.")
+                        merge_info = await existing.update_pr(ContextProxy(self.bot), file_content, existing_entity_type)
+                        notify_msg = f"↻ Updated your **{automation_title}** submission with the latest version."
+                        if merge_info:
+                            added = [name for name, outcome in merge_info.items() if outcome == "added"]
+                            replaced = [name for name, outcome in merge_info.items() if outcome == "replaced"]
+                            parts = []
+                            if added:
+                                parts.append(f"Added new attack{'s' if len(added) != 1 else ''}: {', '.join(added)}.")
+                            if replaced:
+                                parts.append(f"Updated existing attack{'s' if len(replaced) != 1 else ''}: {', '.join(replaced)}.")
+                            notify_msg = f"↻ Updated your **{automation_title}** submission. " + " ".join(parts)
+                        await existing.notify_thread(self.bot, notify_msg)
                         await message.add_reaction(random.choice(constants.REACTIONS))
                         return
 
@@ -257,7 +315,7 @@ class Reports(commands.Cog):
 
                     # Post in thread, to avoid this remove channel kwarg and uncomment the separate AUTOMATION_TRACKER_CHAN constant and get_channel logic in Report.get_channel
                     await report.setup_message(self.bot, channel=message.channel)
-                    await report.setup_pr(ContextProxy(self.bot), file_content)
+                    await report.setup_pr(ContextProxy(self.bot), file_content, entity_type)
                     report.commit()
 
                     await message.add_reaction(random.choice(constants.REACTIONS))
