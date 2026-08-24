@@ -213,3 +213,14 @@ class GitHubClient:
             return None
 
         return await asyncio.get_event_loop().run_in_executor(None, _)
+
+    async def get_pull(self, repo, pr_number):
+        """Returns the PR object for `pr_number`, regardless of open/closed state. `head.ref`
+        remains populated even after the PR is merged and its branch deleted."""
+        if not isinstance(repo, Repository):
+            repo = self.get_repo(repo)
+
+        def _():
+            return repo.get_pull(pr_number)
+
+        return await asyncio.get_event_loop().run_in_executor(None, _)

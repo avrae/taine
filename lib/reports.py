@@ -243,6 +243,23 @@ class Report:
     def is_open(self):
         return self.severity >= 0
 
+    async def get_entity_type(self):
+        """Returns this report's entity type ("action"/"monster"/"spell"), determined from its
+        PR's actual branch name -- works even after the PR is merged and its branch deleted,
+        since `head.ref` is retained PR metadata, not a live branch lookup. Falls back to
+        "action" if the PR can't be fetched or no configured prefix matches."""
+        if not self.is_automation or not self.github_issue:
+            return "action"
+        try:
+            chan = _automation_channel_config(self.repo)
+            pr = await GitHubClient.get_instance().get_pull(self.repo, self.github_issue)
+            for entity_type, entity_cfg in chan["entity_config"].items():
+                if pr.head.ref.startswith(entity_cfg["branch_prefix"] + "/"):
+                    return entity_type
+        except Exception:
+            log.warning(f"Could not determine entity type for {self.repo}#{self.github_issue}, defaulting to action")
+        return "action"
+
     @property
     def score(self):
         return self.upvotes - self.downvotes
