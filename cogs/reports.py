@@ -200,6 +200,7 @@ class Reports(commands.Cog):
                 automation_title = None
                 automation_object = None
                 monster_name = None
+                attack_name = None
                 if data is not None and not static_errors:
                     if entity_type == "monster":
                         if "attacks" in data:
@@ -218,12 +219,22 @@ class Reports(commands.Cog):
                             "which only Monster submissions use -- did you mean to declare this as Monster?"
                         )
 
-                    automation_title = data.get("name")
-                    if not automation_title:
+                    attack_name = data.get("name")
+                    if not attack_name:
                         static_errors.append("Submission must include a 'name' field.")
                     automation_object = data.get("automation")
                     if not automation_object:
                         static_errors.append("Submission must include an 'automation' field.")
+
+                    # Dedup/display identity: for Monster, combine monster+attack so two
+                    # different monsters that happen to share an attack name (e.g. "Slam",
+                    # "Bite") in the same thread don't collide onto the same branch and
+                    # silently overwrite each other -- see attack_name for the raw name used
+                    # in the actual file content.
+                    if entity_type == "monster" and monster_name and attack_name:
+                        automation_title = f"{monster_name}: {attack_name}"
+                    else:
+                        automation_title = attack_name
 
                 # Validate the automation against the avrae automation-common schema
                 if data is not None and not static_errors:
@@ -256,7 +267,7 @@ class Reports(commands.Cog):
                         # Reconstruct the {name, attacks: [...]} shape the rest of the pipeline
                         # (branch/file routing, resolve) already expects.
                         file_content = json.dumps(
-                            [{"name": monster_name, "attacks": [{"name": automation_title, "automation": automation_object}]}],
+                            [{"name": monster_name, "attacks": [{"name": attack_name, "automation": automation_object}]}],
                             indent=2,
                         )
                     else:
