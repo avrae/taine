@@ -293,62 +293,30 @@ class Report:
 
     async def update_pr(self, ctx, file_content, entity_type):
         """Pushes an updated submission file to this report's existing PR branch. For Monster
-        submissions, merges the new attacks into the existing PR file by attack name instead of
-        replacing it wholesale, so a resubmission targeting one attack doesn't drop the others.
-        Returns a dict of {attack_name: "added"|"replaced"} for Monster updates, or None otherwise."""
+        submissions, replaces the matching attack's automation in place in the existing PR file
+        instead of overwriting it wholesale."""
         branch, path = self._get_branch_and_path(entity_type)
         gh = GitHubClient.get_instance()
-        merge_info = None
         if entity_type == "monster":
-            file_content, merge_info = await self._merge_monster_attacks(gh, branch, path, file_content)
+            file_content = await self._merge_monster_attacks(gh, branch, path, file_content)
         await gh.create_or_update_file(
             self.repo, branch, path, file_content, f"Update user-submitted automation: {self.automation_name}")
-        return merge_info
 
     async def _merge_monster_attacks(self, gh, branch, path, new_file_content):
-        """Merges the new submission's attacks into the existing PR file's attacks by
-        case-insensitive attack name -- a matching name replaces that attack in place, a new
-        name is appended. Attacks not mentioned in the new submission are left untouched.
-        Returns (merged_file_content, merge_info) where merge_info maps each submitted attack's
-        original-case name to "added" or "replaced", for the resubmission notification."""
-        new_data = json.loads(new_file_content)[0]
-        new_attacks = new_data.get("attacks", [])
+        """Replaces the attack's `automation` in the existing PR file in place. The incoming
+        submission always targets the one attack this branch was created for (dedup identity is
+        the attack's own name), so the existing file always already contains exactly this attack."""
+        new_attack = json.loads(new_file_content)[0]["attacks"][0]
 
         existing_content = await gh.get_file_content(self.repo, branch, path)
         if existing_content is None:
-            return new_file_content, {a["name"]: "added" for a in new_attacks}
+            return new_file_content
 
         existing_data = json.loads(existing_content)[0]
-        existing_attacks = existing_data.get("attacks", [])
-        by_lower_name = {a["name"].lower(): a for a in existing_attacks}
-
-        merge_info = {}
-        for attack in new_attacks:
-            key = attack["name"].lower()
-            if key in by_lower_name:
-                # Only `automation` is replaced -- the existing attack's own name casing is
-                # kept, mirroring the Action fix path (identity fields untouched on a fix).
-                by_lower_name[key]["automation"] = attack["automation"]
-                merge_info[attack["name"]] = "replaced"
-            else:
-                by_lower_name[key] = attack
-                merge_info[attack["name"]] = "added"
-
-        # Preserve existing attack order (updated in place), then append any genuinely new ones.
-        seen = set()
-        merged_attacks = []
-        for a in existing_attacks:
-            key = a["name"].lower()
-            merged_attacks.append(by_lower_name[key])
-            seen.add(key)
-        for attack in new_attacks:
-            key = attack["name"].lower()
-            if key not in seen:
-                merged_attacks.append(by_lower_name[key])
-                seen.add(key)
-
-        existing_data["attacks"] = merged_attacks
-        return json.dumps([existing_data], indent=2), merge_info
+        # Only `automation` is replaced -- the existing attack's own name casing is kept,
+        # mirroring the Action fix path (identity fields untouched on a fix).
+        existing_data["attacks"][0]["automation"] = new_attack["automation"]
+        return json.dumps([existing_data], indent=2)
 
     async def setup_message(self, bot, channel=None):
         if channel is None:

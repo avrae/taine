@@ -22,8 +22,7 @@ from lib.reports import Attachment, Report, get_next_report_num
 
 BUG_RE = re.compile(r"\**What is the [Bb]ug\?\**:?\s*(.+?)(\n|$)")
 FEATURE_RE = re.compile(r"\**Feature [Rr]equest\**:?\s*(.+?)(\n|$)")
-# entity_type defaults to Action when omitted -- a strict superset of the original header,
-# every message that matched before still matches.
+# entity_type defaults to Action when omitted -- a strict superset of the original header.
 AUTOMATION_HEADER_RE = re.compile(
     r"^\**Automation Submission\**\s*:?\s*(?P<entity_type>Monster|Spell|Action)?\s*\**\s*$", re.IGNORECASE
 )
@@ -197,7 +196,7 @@ class Reports(commands.Cog):
 
                 # Require a name and an automation payload; Monster additionally requires a
                 # 'monster' field (which monster this one attack belongs to) and must NOT use
-                # an 'attacks' list -- one attack per message, see the format spec.
+                # an 'attacks' list -- one attack per message.
                 automation_title = None
                 automation_object = None
                 monster_name = None
@@ -255,8 +254,7 @@ class Reports(commands.Cog):
                     thread_id = message.channel.id
                     if entity_type == "monster":
                         # Reconstruct the {name, attacks: [...]} shape the rest of the pipeline
-                        # (branch/file routing, merge-by-attack-name, resolve) already expects --
-                        # the submitter only ever sends one attack per message.
+                        # (branch/file routing, resolve) already expects.
                         file_content = json.dumps(
                             [{"name": monster_name, "attacks": [{"name": automation_title, "automation": automation_object}]}],
                             indent=2,
@@ -268,18 +266,9 @@ class Reports(commands.Cog):
                         repo, thread_id, message.author.id, automation_title)
 
                     if existing is not None:
-                        merge_info = await existing.update_pr(ContextProxy(self.bot), file_content, existing_entity_type)
-                        notify_msg = f"↻ Updated your **{automation_title}** submission with the latest version."
-                        if merge_info:
-                            added = [name for name, outcome in merge_info.items() if outcome == "added"]
-                            replaced = [name for name, outcome in merge_info.items() if outcome == "replaced"]
-                            parts = []
-                            if added:
-                                parts.append(f"Added new attack{'s' if len(added) != 1 else ''}: {', '.join(added)}.")
-                            if replaced:
-                                parts.append(f"Updated existing attack{'s' if len(replaced) != 1 else ''}: {', '.join(replaced)}.")
-                            notify_msg = f"↻ Updated your **{automation_title}** submission. " + " ".join(parts)
-                        await existing.notify_thread(self.bot, notify_msg)
+                        await existing.update_pr(ContextProxy(self.bot), file_content, existing_entity_type)
+                        await existing.notify_thread(
+                            self.bot, f"↻ Updated your **{automation_title}** submission with the latest version.")
                         await message.add_reaction(random.choice(constants.REACTIONS))
                         return
 
