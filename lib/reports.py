@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -92,6 +93,14 @@ class Attachment:
     @classmethod
     def cnr(cls, author, msg=''):
         return cls(author, msg, -1)
+
+
+def _automation_channel_config(repo):
+    """Returns the AUTOMATION_LISTEN_CHANS entry for `repo`, or raises if none is configured."""
+    for chan in constants.AUTOMATION_LISTEN_CHANS:
+        if chan["repo"] == repo:
+            return chan
+    raise ReportException(f"No automation config found for repo {repo}.")
 
 
 class Report:
@@ -213,16 +222,23 @@ class Report:
 
     @classmethod
     async def find_existing_submission(cls, repo, thread_id, user_id, automation_name):
-        """Returns the Report for an existing open PR for this submission key, or None if there isn't one."""
-        branch = dedup.branch_name(thread_id, user_id, automation_name)
-        pr = await GitHubClient.get_instance().find_open_pr_for_branch(repo, branch)
-        if pr is None:
-            return None
-        try:
-            return cls.from_github(repo, pr.number)
-        except ReportException:
-            log.warning(f"Open PR #{pr.number} on {repo} for branch {branch} has no matching Report")
-            return None
+        """Returns (Report, entity_type) for an existing open PR for this submission key, or
+        (None, None) if there isn't one. Fans out across every configured entity type's branch
+        prefix rather than persisting entity_type on Report -- the branch a submission already
+        lives on is what determines its entity type, not the current message's declared header."""
+        chan = _automation_channel_config(repo)
+        gh = GitHubClient.get_instance()
+        for entity_type, entity_cfg in chan["entity_config"].items():
+            branch = dedup.branch_name(thread_id, user_id, automation_name, branch_prefix=entity_cfg["branch_prefix"])
+            pr = await gh.find_open_pr_for_branch(repo, branch)
+            if pr is None:
+                continue
+            try:
+                return cls.from_github(repo, pr.number), entity_type
+            except ReportException:
+                log.warning(f"Open PR #{pr.number} on {repo} for branch {branch} has no matching Report")
+                return None, None
+        return None, None
 
     def is_open(self):
         return self.severity >= 0
@@ -246,24 +262,26 @@ class Report:
                                                                labels)
         self.github_issue = issue.number
 
-    def _get_automation_config(self):
-        """Returns the (target_folder, base_branch) config for this report's repo."""
-        for chan in constants.AUTOMATION_LISTEN_CHANS:
-            if chan["repo"] == self.repo:
-                return chan["target_folder"], chan["base_branch"]
-        raise ReportException(f"No automation config found for repo {self.repo}.")
+    def _get_automation_config(self, entity_type):
+        """Returns the (target_folder, branch_prefix, base_branch) config for this report's
+        repo and entity type."""
+        chan = _automation_channel_config(self.repo)
+        entity_cfg = chan["entity_config"].get(entity_type)
+        if entity_cfg is None:
+            raise ReportException(f"No automation config found for entity type {entity_type} on repo {self.repo}.")
+        return entity_cfg["folder"], entity_cfg["branch_prefix"], chan["base_branch"]
 
-    def _get_branch_and_path(self):
+    def _get_branch_and_path(self, entity_type):
         """Returns the (branch, file path) for this report's submission branch."""
-        target_folder, _ = self._get_automation_config()
-        branch = dedup.branch_name(self.thread_id, self.reporter, self.automation_name)
+        target_folder, branch_prefix, _ = self._get_automation_config(entity_type)
+        branch = dedup.branch_name(self.thread_id, self.reporter, self.automation_name, branch_prefix=branch_prefix)
         path = target_folder + branch.split("/")[-1] + ".json"
         return branch, path
 
-    async def setup_pr(self, ctx, file_content):
+    async def setup_pr(self, ctx, file_content, entity_type):
         """Opens a draft PR on a new branch for this automation submission."""
-        _, base_branch = self._get_automation_config()
-        branch, path = self._get_branch_and_path()
+        _, _, base_branch = self._get_automation_config(entity_type)
+        branch, path = self._get_branch_and_path(entity_type)
         gh = GitHubClient.get_instance()
         await gh.get_or_create_branch(self.repo, branch, base_branch)
         await gh.create_or_update_file(self.repo, branch, path, file_content,
@@ -273,11 +291,32 @@ class Report:
                                       self.get_github_desc(ctx))
         self.github_issue = pr.number
 
-    async def update_pr(self, ctx, file_content):
-        """Pushes an updated submission file to this report's existing PR branch."""
-        branch, path = self._get_branch_and_path()
-        await GitHubClient.get_instance().create_or_update_file(
+    async def update_pr(self, ctx, file_content, entity_type):
+        """Pushes an updated submission file to this report's existing PR branch. For Monster
+        submissions, replaces the matching attack's automation in place in the existing PR file
+        instead of overwriting it wholesale."""
+        branch, path = self._get_branch_and_path(entity_type)
+        gh = GitHubClient.get_instance()
+        if entity_type == "monster":
+            file_content = await self._merge_monster_attacks(gh, branch, path, file_content)
+        await gh.create_or_update_file(
             self.repo, branch, path, file_content, f"Update user-submitted automation: {self.automation_name}")
+
+    async def _merge_monster_attacks(self, gh, branch, path, new_file_content):
+        """Replaces the attack's `automation` in the existing PR file in place. The incoming
+        submission always targets the one attack this branch was created for (dedup identity is
+        the attack's own name), so the existing file always already contains exactly this attack."""
+        new_attack = json.loads(new_file_content)[0]["attacks"][0]
+
+        existing_content = await gh.get_file_content(self.repo, branch, path)
+        if existing_content is None:
+            return new_file_content
+
+        existing_data = json.loads(existing_content)[0]
+        # Only `automation` is replaced -- the existing attack's own name casing is kept,
+        # mirroring the Action fix path (identity fields untouched on a fix).
+        existing_data["attacks"][0]["automation"] = new_attack["automation"]
+        return json.dumps([existing_data], indent=2)
 
     async def setup_message(self, bot, channel=None):
         if channel is None:

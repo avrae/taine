@@ -22,8 +22,8 @@ def submission_hash(thread_id, user_id, automation_name: str) -> str:
     return digest[:HASH_LEN]
 
 
-def branch_name(thread_id, user_id, automation_name: str) -> str:
-    """Returns the deterministic submission branch name: `user-automation/<slug>-<hash>`."""
+def branch_name(thread_id, user_id, automation_name: str, branch_prefix: str = BRANCH_PREFIX) -> str:
+    """Returns the deterministic submission branch name: `<branch_prefix>/<slug>-<hash>`."""
     slug = slugify(automation_name)
     digest = submission_hash(thread_id, user_id, automation_name)
-    return f"{BRANCH_PREFIX}/{slug}-{digest}"
+    return f"{branch_prefix}/{slug}-{digest}"

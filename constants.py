@@ -25,8 +25,14 @@ AUTOMATION_LISTEN_CHANS = [
         "id": 1241495694616035379,
         "identifier": "AUT",
         "repo": "avrae/avrae-data-entry",
-        "target_folder": "user-automations/",
         "base_branch": "main",
+        # Per-entity-type staging folder + branch prefix. Folder location is the durable
+        # signal for entity type all the way through to resolution.
+        "entity_config": {
+            "action": {"folder": "user-automations/", "branch_prefix": "user-automation"},
+            "monster": {"folder": "user-monsters/", "branch_prefix": "user-monster"},
+            "spell": {"folder": "user-spells/", "branch_prefix": "user-spell"},
+        },
     }
 ]
 
