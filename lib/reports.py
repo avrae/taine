@@ -379,7 +379,7 @@ class Report:
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
                 if isinstance(attachment.author, (int, Decimal)) and guild:
-                    user = guild.get_member(attachment.author)
+                    user = guild.get_member(attachment.author) or f"<@{attachment.author}>"
                 else:
                     user = attachment.author
                 if attachment.message:
@@ -397,7 +397,7 @@ class Report:
             msg = self.attachments[0].message
 
         if not self.is_automation:
-            author = next((m for m in ctx.bot.get_all_members() if m.id == self.reporter), None)
+            author = ctx.bot.get_user(self.reporter)
             if author:
                 desc = f"{msg}\n\n- {author}"
             else:
@@ -437,7 +437,8 @@ class Report:
 
     def get_attachment_message(self, ctx, attachment: Attachment):
         if isinstance(attachment.author, (int, Decimal)):
-            username = str(next((m for m in ctx.bot.get_all_members() if m.id == attachment.author), attachment.author))
+            user = ctx.bot.get_user(attachment.author)
+            username = str(user) if user else attachment.author
         else:
             username = attachment.author
 
@@ -543,8 +544,12 @@ class Report:
             # send the full report detail and pin it
             msg = await thread.send(embed=self.get_embed(detailed=True, guild=channel.guild))
             await msg.pin()
-            # add the report author
             reporter = bot.get_user(self.reporter)
+            if reporter is None:
+                try:
+                    reporter = await bot.fetch_user(self.reporter)
+                except disnake.HTTPException:
+                    reporter = None
             if reporter is not None:
                 await thread.add_user(reporter)
         except disnake.HTTPException as e:
@@ -711,9 +716,11 @@ class Report:
                               f'or view notes with "~report {self.report_id}"')
         for sub in self.subscribers:
             try:
-                member = next(m for m in ctx.bot.get_all_members() if m.id == sub)
-                await member.send(embed=embed)
-            except (StopIteration, disnake.HTTPException):
+                user = ctx.bot.get_user(sub)
+                if user is None:
+                    user = await ctx.bot.fetch_user(sub)
+                await user.send(embed=embed)
+            except disnake.HTTPException:
                 continue
 
 
