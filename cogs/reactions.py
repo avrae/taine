@@ -25,14 +25,21 @@ class Reactions(commands.Cog):
         if not event.guild_id:
             return
 
-        msg_id = event.message_id
-        server = self.bot.get_guild(event.guild_id)
-        member = server.get_member(event.user_id)
-        emoji = event.emoji
+        member = event.member
+        if member is None:
+            guild = self.bot.get_guild(event.guild_id)
+            if guild is None:
+                return
+            try:
+                member = await guild.fetch_member(event.user_id)
+            except disnake.HTTPException:
+                return
 
-        await self.handle_reaction(msg_id, member, emoji)
+        await self.handle_reaction(event.message_id, member, event.emoji)
 
     async def handle_reaction(self, msg_id, member, emoji):
+        if member is None:
+            return
         if msg_id == README_MSG_ID:
             if emoji.id == BUG_HUNTER_REACTION_ID:
                 return await self.toggle_role(member, id=BUG_HUNTER_ROLE_ID)
