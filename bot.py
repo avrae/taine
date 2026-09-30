@@ -24,7 +24,8 @@ class Taine(commands.AutoShardedBot):
         super(Taine, self).__init__(*args, **kwargs)
 
 
-intents = Intents.all()
+intents = Intents.default()
+intents.message_content = True
 bot = Taine(
     command_prefix="~",
     intents=intents,

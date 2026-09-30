@@ -26,8 +26,10 @@ class Reactions(commands.Cog):
             return
 
         msg_id = event.message_id
-        server = self.bot.get_guild(event.guild_id)
-        member = server.get_member(event.user_id)
+        member = event.member
+        if member is None:
+            server = self.bot.get_guild(event.guild_id)
+            member = server.get_member(event.user_id) or await server.fetch_member(event.user_id)
         emoji = event.emoji
 
         await self.handle_reaction(msg_id, member, emoji)

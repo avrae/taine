@@ -35,7 +35,8 @@ Whenever a report comes in that matches the proper formatting, it follows this l
 
 Set the following environment variables:
 
-- `DISCORD_TOKEN` - a Discord bot token.
+- `DISCORD_TOKEN` - a Discord bot token. The application must have the **Message Content** privileged
+  intent enabled in the Discord Developer Portal; Presence and Server Members are not required.
 - `GITHUB_TOKEN` - a Github Personal Access Token.
 - `ORG_NAME` - name of the GitHub org your repos are in, defaults to `avrae`.
 
