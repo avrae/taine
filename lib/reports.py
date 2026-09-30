@@ -379,7 +379,7 @@ class Report:
             embed.description = f"*{len(self.attachments)} notes, showing first 10*"
             for attachment in self.attachments[:10]:
                 if isinstance(attachment.author, (int, Decimal)) and guild:
-                    user = guild.get_member(attachment.author)
+                    user = guild.get_member(attachment.author) or attachment.author
                 else:
                     user = attachment.author
                 if attachment.message:
