@@ -222,12 +222,13 @@ class Web(commands.Cog):
 
             entity_type = await report.get_entity_type()
             if entity_type == "monster":
-                # For Monster, dedup identity is the attack's own `name` -- disambiguation
-                # happens on the separate `monster` field instead, which this submission's
-                # `name` never touches.
+                # Dedup identity combines `monster_name: attack_name` (see cogs/reports.py),
+                # so changing `monster` creates a new submission just like Action/Spell's `name`.
                 msg += (f"\nCheck the spelling, or if the monster name is ambiguous, add a "
                         f"disambiguating source to the `monster` field like \"Name (Source)\", "
-                        f"then post an updated submission in this thread.")
+                        f"then post an updated submission in this thread — since the monster "
+                        f"changes, it'll go through as a new submission rather than updating "
+                        f"this one.")
             else:
                 msg += (f"\nCheck the spelling, or add a disambiguating source like \"{name} (Source)\", "
                         f"then post an updated submission in this thread — since the name changes, "
